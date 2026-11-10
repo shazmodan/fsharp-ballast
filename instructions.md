@@ -214,7 +214,7 @@ Build each milestone test-first. Each one is done when its acceptance check pass
 
 **1. Scaffold and pure metrics. Done 2026-11-10.** Solution, centrally pinned packages (`Directory.Packages.props`), and `Metrics.calculate` and `Metrics.summarize` tested over hand-built declarations and edges. `Ballast.Analysis` and `Ballast.Cli` are created in milestones 2 and 6, when they first have code. `calculate` counts every edge it receives, so extraction must drop external targets unless `--include-external` applies.
 
-**2. Project loading.** `ProjectLoader` handles `.fsproj`, `.sln` and `.slnx`, and restores first. Do not assume the options come back in build order, because `.slnx` returned a dependent project before its dependency. Acceptance: a two-project fixture loads with its project reference resolved, and both a project that fails to load and one with a type error exit with code 2 and a clear message.
+**2. Project loading. Done 2026-11-10.** `ProjectLoader.load` handles `.fsproj`, `.sln` and `.slnx`, restores first, and leaves C# projects out. `ProjectLoader.check` type-checks every project. Failures come back as a typed `AnalysisError` with a clear message, and milestone 6 maps them to exit code 2. Do not assume the options come back in build order, because `.slnx` returned a dependent project before its dependency. Ionide evaluates an unrestored project without reporting a failure and `RestoreSuccess` stays true, so the loader checks for the project's assets file. An F# project that references a C# project has not been tested.
 
 **3. Scope index.** Acceptance: tests cover namespaces, top-level and nested modules, implicit file modules, `and` groups, `namespace rec`, augmentations, `open` ranges, and attributes on declarations.
 

@@ -4,10 +4,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="MetricsTests.fs" />
+    <Compile Include="ProjectLoaderTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Expecto" />
     <ProjectReference Include="..\..\src\Ballast.Core\Ballast.Core.fsproj" />
+    <ProjectReference Include="..\..\src\Ballast.Analysis\Ballast.Analysis.fsproj" />
   </ItemGroup>
 </Project>

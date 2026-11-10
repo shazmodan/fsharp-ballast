@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Compile Include="ProjectLoader.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharp.Compiler.Service" />
+    <PackageReference Include="Ionide.ProjInfo" />
+    <PackageReference Include="Ionide.ProjInfo.FCS" />
+  </ItemGroup>
+</Project>
