@@ -216,7 +216,7 @@ Build each milestone test-first. Each one is done when its acceptance check pass
 
 **2. Project loading. Done 2026-11-10.** `ProjectLoader.load` handles `.fsproj`, `.sln` and `.slnx`, restores first, and leaves C# projects out. `ProjectLoader.check` type-checks every project. Failures come back as a typed `AnalysisError` with a clear message, and milestone 6 maps them to exit code 2. Do not assume the options come back in build order, because `.slnx` returned a dependent project before its dependency. Ionide evaluates an unrestored project without reporting a failure and `RestoreSuccess` stays true, so the loader checks for the project's assets file. An F# project that references a C# project has not been tested.
 
-**3. Scope index.** Acceptance: tests cover namespaces, top-level and nested modules, implicit file modules, `and` groups, `namespace rec`, augmentations, `open` ranges, and attributes on declarations.
+**3. Scope index. Done 2026-11-10.** `ScopeIndex.ofParseTree`, `enclosing` and `isInOpen`, tested on parsed source for namespaces including `namespace global` and `namespace rec`, top-level, nested and implicit modules, `and` groups, augmentations, exceptions, `open` ranges, and attributes on types and modules. An augmentation is intrinsic when its type is declared in the same namespace or module, and otherwise belongs to the enclosing module. Milestone 4 must confirm that real compiler symbol ranges land in these scopes.
 
 **4. Symbol extraction.** Acceptance: one fixture per row of the target table in section 4, plus inferred return types, active patterns, extension methods, `inline` functions, SRTP, computation expressions and a file with an `.fsi` signature.
 

@@ -5,6 +5,7 @@
   <ItemGroup>
     <Compile Include="MetricsTests.fs" />
     <Compile Include="ProjectLoaderTests.fs" />
+    <Compile Include="ScopeIndexTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
