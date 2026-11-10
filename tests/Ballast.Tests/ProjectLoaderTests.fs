@@ -171,6 +171,17 @@ let tests =
                 | other -> failtest $"expected a compilation failure, got {other}")
         }
 
+        test "a C# project that references an F# project is a load failure that names both" {
+            withFixture "CSharpUsesFSharp" (fun directory ->
+                match load restoring (Path.Combine(directory, "CSharpUsesFSharp.slnx")) with
+                | Error(ProjectLoadFailed(path, message)) ->
+                    Expect.stringContains path "CsApp.csproj" "the C# project"
+                    Expect.stringContains message "'CsApp'" "names the C# project"
+                    Expect.stringContains message "'FsLib'" "names the F# project"
+                    Expect.stringContains message "not supported" "says why"
+                | other -> failtest $"expected a load failure, got {other}")
+        }
+
         test "a file that is not a project or solution is a load failure" {
             withFixture "TypeError" (fun directory ->
                 let path = Path.Combine(directory, "Bad.fs")

@@ -4,6 +4,7 @@ open System
 open System.Diagnostics
 open System.IO
 open Microsoft.CodeAnalysis
+open Microsoft.CodeAnalysis.Emit
 open Microsoft.CodeAnalysis.MSBuild
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Diagnostics
@@ -31,6 +32,8 @@ type LoadedSolution =
       CSharpProjects: string list
       /// MSBuild global properties from the options, such as Configuration, for loading C# projects the same way.
       Properties: (string * string) list
+      /// For each C# project, the assembly paths an F# project's -r: options may use for it.
+      CSharpAssemblyPaths: Map<string, string list>
       Checker: FSharpChecker }
 
 let private restore (path: string) =
@@ -82,19 +85,42 @@ let load (options: LoadOptions) (path: string) : Result<LoadedSolution, Analysis
 
         // Ionide evaluates an unrestored project without reporting a failure, and RestoreSuccess stays true.
         // Roslyn does not report it either, so this check covers C# projects too.
+        let csharp = loaded |> List.filter (fun p -> p.ProjectFileName.EndsWith ".csproj")
+        let nameOf (file: string) = Path.GetFileNameWithoutExtension file
+
+        // Roslyn would need F# metadata, which only building the F# project produces.
+        let csharpUsingFSharp =
+            csharp
+            |> List.tryPick (fun p ->
+                p.ReferencedProjects
+                |> List.tryFind (fun r -> r.ProjectFileName.EndsWith ".fsproj")
+                |> Option.map (fun r -> p.ProjectFileName, r.ProjectFileName))
+
         match loaded |> List.tryFind (fun (p: ProjectOptions) -> not (File.Exists p.ProjectSdkInfo.ProjectAssetsFile)) with
         | Some unrestored ->
             Error(ProjectLoadFailed(unrestored.ProjectFileName, "Project is not restored. Run 'dotnet restore' first."))
         | None when loaded.IsEmpty -> Error(ProjectLoadFailed(fullPath, "No F# or C# projects found."))
+        | None when csharpUsingFSharp.IsSome ->
+            let csproj, fsproj = csharpUsingFSharp.Value
+
+            Error(
+                ProjectLoadFailed(
+                    csproj,
+                    $"C# project '{nameOf csproj}' references F# project '{nameOf fsproj}'. C# code that depends on F# projects is not supported yet."
+                )
+            )
         | None ->
             let fsharp = loaded |> List.filter (fun p -> p.ProjectFileName.EndsWith ".fsproj")
             let projects = FCS.mapManyOptions fsharp |> Seq.toList
 
             Ok
                 { Projects = projects
-                  CSharpProjects =
-                    loaded |> List.filter (fun p -> p.ProjectFileName.EndsWith ".csproj") |> List.map (fun p -> p.ProjectFileName)
+                  CSharpProjects = csharp |> List.map (fun p -> p.ProjectFileName)
                   Properties = globalProperties
+                  CSharpAssemblyPaths =
+                    csharp
+                    |> List.map (fun p -> p.ProjectFileName, [ p.TargetPath; yield! Option.toList p.TargetRefPath ])
+                    |> Map.ofList
                   Checker = FSharpChecker.Create(projectCacheSize = max 1 projects.Length) }
 
 type CheckedSolution =
@@ -158,7 +184,43 @@ let private checkFSharp (solution: LoadedSolution) : Result<FSharpCheckProjectRe
 
     checkAll [] solution.Projects
 
-/// Type-checks the F# projects with FCS and compiles the C# projects with Roslyn, failing on the first errors.
+/// Metadata-only images of the C# compilations, under every path an F# -r: option may use for them.
+let private metadataImages (solution: LoadedSolution) (compilations: Compilation list) =
+    List.zip solution.CSharpProjects compilations
+    |> List.collect (fun (project, compilation) ->
+        use stream = new MemoryStream()
+        compilation.Emit(stream, options = EmitOptions(metadataOnly = true)) |> ignore
+        let bytes = stream.ToArray()
+        solution.CSharpAssemblyPaths[project] |> List.map (fun path -> path, bytes))
+
+/// Hands FCS the C# metadata from memory, under the path its -r: option already names, so nothing is built.
+let private withCSharpReferences (images: (string * byte[]) list) (project: FSharpProjectOptions) =
+    let stamp = DateTime.UtcNow
+
+    let references =
+        project.OtherOptions
+        |> Array.choose (fun option -> if option.StartsWith "-r:" then Some(option.Substring 3) else None)
+        |> Array.choose (fun path ->
+            images
+            |> List.tryFind (fun (imagePath, _) -> String.Equals(imagePath, path, StringComparison.OrdinalIgnoreCase))
+            |> Option.map (fun (_, bytes) ->
+                FSharpReferencedProject.PEReference(
+                    (fun () -> stamp),
+                    DelayedILModuleReader(path, fun _ -> Some(new MemoryStream(bytes) :> Stream))
+                )))
+
+    if references.Length = 0 then
+        project
+    else
+        { project with ReferencedProjects = Array.append project.ReferencedProjects references }
+
+/// Compiles the C# projects with Roslyn, then type-checks the F# projects with FCS against the C# metadata,
+/// failing on the first errors.
 let check (solution: LoadedSolution) : Result<CheckedSolution, AnalysisError> =
-    checkFSharp solution
-    |> Result.bind (fun fsharp -> checkCSharp solution |> Result.map (fun csharp -> { FSharp = fsharp; CSharp = csharp }))
+    checkCSharp solution
+    |> Result.bind (fun csharp ->
+        let images = metadataImages solution csharp
+        let projects = solution.Projects |> List.map (withCSharpReferences images)
+
+        checkFSharp { solution with Projects = projects }
+        |> Result.map (fun fsharp -> { FSharp = fsharp; CSharp = csharp }))

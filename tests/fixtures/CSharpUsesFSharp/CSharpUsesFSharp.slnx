@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CsApp/CsApp.csproj" />
+  <Project Path="FsLib/FsLib.fsproj" />
+</Solution>

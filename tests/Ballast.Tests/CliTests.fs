@@ -324,6 +324,15 @@ let tests =
             expectRow components "Lib::Fixture.CSharp.Lib" (1, 0, 1, 0, Some 0.0, Some 0.0, Some 1.0, Some "pain")
         }
 
+        test "an F# project using a C# library matches its hand-calculated table" {
+            let run = runOnFixture "MixedLayered" "MixedLayered.slnx" [ "--format"; "json" ]
+
+            Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
+            let components = componentsOf run.Output
+            expectRow components "CsCore::Mixed.Core" (2, 1, 2, 0, Some 0.5, Some 0.0, Some 0.5, None)
+            expectRow components "FsApp::Mixed.App" (2, 0, 0, 2, Some 0.0, Some 1.0, Some 0.0, None)
+        }
+
         test "--help prints usage and succeeds" {
             let run = runCli [ "--help" ]
 
