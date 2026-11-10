@@ -9,11 +9,13 @@
     <Compile Include="ScopeIndexTests.fs" />
     <Compile Include="SymbolExtractorTests.fs" />
     <Compile Include="ClassifierTests.fs" />
+    <Compile Include="CliTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Expecto" />
     <ProjectReference Include="..\..\src\Ballast.Core\Ballast.Core.fsproj" />
     <ProjectReference Include="..\..\src\Ballast.Analysis\Ballast.Analysis.fsproj" />
+    <ProjectReference Include="..\..\src\Ballast.Cli\Ballast.Cli.fsproj" />
   </ItemGroup>
 </Project>

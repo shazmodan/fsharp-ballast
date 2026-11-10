@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Args.fs" />
+    <Compile Include="Reports.fs" />
+    <Compile Include="HtmlReport.fs" />
+    <Compile Include="Cli.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Argu" />
+    <ProjectReference Include="..\Ballast.Core\Ballast.Core.fsproj" />
+    <ProjectReference Include="..\Ballast.Analysis\Ballast.Analysis.fsproj" />
+  </ItemGroup>
+</Project>

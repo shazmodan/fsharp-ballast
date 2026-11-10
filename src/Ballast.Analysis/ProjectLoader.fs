@@ -7,7 +7,17 @@ open FSharp.Compiler.Diagnostics
 open Ionide.ProjInfo
 open Ionide.ProjInfo.Types
 
-type LoadOptions = { Restore: bool }
+type LoadOptions =
+    { Restore: bool
+      IncludeTests: bool
+      Configuration: string option
+      Framework: string option }
+
+let defaultLoadOptions =
+    { Restore = true
+      IncludeTests = false
+      Configuration = None
+      Framework = None }
 
 type AnalysisError =
     | ProjectLoadFailed of path: string * message: string
@@ -47,7 +57,11 @@ let load (options: LoadOptions) (path: string) : Result<LoadedSolution, Analysis
         Error(ProjectLoadFailed(fullPath, $"dotnet restore failed:\n{restoreOutput.Trim()}"))
     else
         let tools = Init.init (DirectoryInfo(Path.GetDirectoryName fullPath)) None
-        let loader = WorkspaceLoader.Create(tools, [])
+        let globalProperties =
+            [ yield! options.Configuration |> Option.map (fun value -> "Configuration", value) |> Option.toList
+              yield! options.Framework |> Option.map (fun value -> "TargetFramework", value) |> Option.toList ]
+
+        let loader = WorkspaceLoader.Create(tools, globalProperties)
 
         let loaded =
             if fullPath.EndsWith ".fsproj" then
@@ -55,6 +69,7 @@ let load (options: LoadOptions) (path: string) : Result<LoadedSolution, Analysis
             else
                 loader.LoadSln fullPath
             |> Seq.filter (fun p -> p.ProjectFileName.EndsWith ".fsproj")
+            |> Seq.filter (fun p -> options.IncludeTests || not p.ProjectSdkInfo.IsTestProject)
             |> Seq.toList
 
         // Ionide evaluates an unrestored project without reporting a failure, and RestoreSuccess stays true.

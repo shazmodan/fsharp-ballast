@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Core.fs" />
+    <Compile Include="Net8Only.fs" Condition="'$(TargetFramework)' == 'net8.0'" />
+  </ItemGroup>
+</Project>

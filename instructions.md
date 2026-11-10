@@ -188,7 +188,7 @@ fsharp-ballast <path-to-sln-slnx-or-fsproj>
     [--max-distance <0..1>]                fail if any component exceeds this
 ```
 
-Exit codes: `0` success, `1` `--max-distance` exceeded, `2` analysis failed (load failure, or any diagnostic with `FSharpDiagnosticSeverity.Error`). Do not rely on `HasCriticalErrors`, which stays false for ordinary type errors.
+Exit codes: `0` success, `1` `--max-distance` exceeded, `2` invalid arguments or analysis failed (load failure, or any diagnostic with `FSharpDiagnosticSeverity.Error`). Do not rely on `HasCriticalErrors`, which stays false for ordinary type errors.
 
 Sort table output by `D`, highest first. Compute with unrounded `float` and round to three decimals for display only. JSON shape:
 
@@ -222,7 +222,7 @@ Build each milestone test-first. Each one is done when its acceptance check pass
 
 **5. Classification. Done 2026-11-10.** `Classifier.classify` turns a located declaration into the `Declaration` that `Metrics.calculate` takes, tested with one fixture declaration per row of the table in section 5 under both profiles. `IsFunctionType` does not look through abbreviations, so function detection follows them first. That covers `type DeepClock = Clock` and a record field of type `Clock`.
 
-**6. CLI and reports.** Acceptance: the end-to-end fixtures in section 8 match exactly in every output format, and all three exit codes are covered.
+**6. CLI and reports. Done 2026-11-10.** `Cli.run` is tested in-process against the fixtures in section 8 and every flag in section 6, in all four formats, with all three exit codes. Invalid arguments also exit with code 2. `--exclude` hides components from the report, but their dependencies still count in the other components' metrics. Test projects are recognised by the MSBuild `IsTestProject` property, which `Microsoft.NET.Test.Sdk` sets. A test project without it, such as a plain Expecto console project, is analysed unless excluded. With no `--framework`, the first target framework is used, which the MultiTarget fixture confirms. The HTML report was checked by eye in light mode, dark mode and at 360 px wide.
 
 **7. Real-world validation.** Run against this repository and at least two open-source F# projects of different shapes, such as a library and an application. Spot-check about 20 edges by hand per project, and record run time and memory. Acceptance: no crashes, and any edge that looks wrong is explained or fixed.
 

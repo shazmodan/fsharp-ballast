@@ -5,7 +5,8 @@ open Expecto
 open Ballast.Analysis.ProjectLoader
 open Ballast.Tests.Fixtures
 
-let private restoring = { Restore = true }
+let private restoring = defaultLoadOptions
+let private notRestoring = { defaultLoadOptions with Restore = false }
 
 let private projectNames (solution: LoadedSolution) =
     solution.Projects
@@ -60,7 +61,7 @@ let tests =
 
         test "an unrestored project is a load failure when restore is turned off" {
             withFixture "TwoProjects" (fun directory ->
-                let result = load { Restore = false } (Path.Combine(directory, "Lib", "Lib.fsproj"))
+                let result = load notRestoring (Path.Combine(directory, "Lib", "Lib.fsproj"))
 
                 expectLoadFailure result "not restored")
         }
@@ -105,6 +106,6 @@ let tests =
             withFixture "TypeError" (fun directory ->
                 let path = Path.Combine(directory, "Bad.fs")
 
-                expectLoadFailure (load { Restore = false } path) "Expected a .fsproj, .sln or .slnx file")
+                expectLoadFailure (load notRestoring path) "Expected a .fsproj, .sln or .slnx file")
         }
     ]

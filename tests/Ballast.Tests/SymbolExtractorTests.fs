@@ -12,7 +12,7 @@ let private internalOnly = { IncludeExternal = false }
 let private extractFixture name relativePath options =
     withFixture name (fun directory ->
         let path = Path.Combine(directory, relativePath)
-        let solution = Expect.wantOk (load { Restore = true } path) "load"
+        let solution = Expect.wantOk (load defaultLoadOptions path) "load"
         let results = Expect.wantOk (check solution) "check"
         extract options solution results)
 

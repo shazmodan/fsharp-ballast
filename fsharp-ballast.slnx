@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Ballast.Analysis/Ballast.Analysis.fsproj" />
+    <Project Path="src/Ballast.Cli/Ballast.Cli.fsproj" />
     <Project Path="src/Ballast.Core/Ballast.Core.fsproj" />
   </Folder>
   <Folder Name="/tests/">

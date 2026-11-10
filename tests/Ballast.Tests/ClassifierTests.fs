@@ -12,7 +12,7 @@ let private classified =
     lazy
         (withFixture "Classification" (fun directory ->
             let solution =
-                Expect.wantOk (load { Restore = true } (Path.Combine(directory, "Classification.fsproj"))) "load"
+                Expect.wantOk (load defaultLoadOptions (Path.Combine(directory, "Classification.fsproj"))) "load"
 
             let results = Expect.wantOk (check solution) "check"
 
