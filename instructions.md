@@ -151,7 +151,7 @@ Then build the edge set:
 
 ## 5. Abstractness classification
 
-`IsData` is true for records, unions and enums that are not abstract under the selected profile.
+`IsData` is true for records, unions and enums. `DataShare` then counts only those that are `Concrete` under the selected profile.
 
 | F# construct | Detection | In `Nc`? | `fsharp` profile | `classic` profile |
 | --- | --- | --- | --- | --- |
@@ -212,7 +212,7 @@ Build each milestone test-first. Each one is done when its acceptance check pass
 
 **0. Spike. Done 2026-11-10.** Throwaway program that loaded fixtures through Ionide and printed every symbol use with its containing range. Results are in section 9, and this plan has been updated to match.
 
-**1. Scaffold and pure metrics.** Create the solution, pin packages, and implement `Metrics.fs` over hand-built declarations and edges. Acceptance: tests cover every formula, undefined value, zone boundary, and edge de-duplication.
+**1. Scaffold and pure metrics. Done 2026-11-10.** Solution, centrally pinned packages (`Directory.Packages.props`), and `Metrics.calculate` and `Metrics.summarize` tested over hand-built declarations and edges. `Ballast.Analysis` and `Ballast.Cli` are created in milestones 2 and 6, when they first have code. `calculate` counts every edge it receives, so extraction must drop external targets unless `--include-external` applies.
 
 **2. Project loading.** `ProjectLoader` handles `.fsproj`, `.sln` and `.slnx`, and restores first. Do not assume the options come back in build order, because `.slnx` returned a dependent project before its dependency. Acceptance: a two-project fixture loads with its project reference resolved, and both a project that fails to load and one with a type error exit with code 2 and a clear message.
 

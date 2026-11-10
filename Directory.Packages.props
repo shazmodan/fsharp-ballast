@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- FSharp.Compiler.Service and FSharp.Core are the exact versions Ionide.ProjInfo 0.75.3 requires. -->
+    <PackageVersion Include="FSharp.Core" Version="10.1.201" />
+    <PackageVersion Include="FSharp.Compiler.Service" Version="43.12.201" />
+    <PackageVersion Include="Ionide.ProjInfo" Version="0.75.3" />
+    <PackageVersion Include="Ionide.ProjInfo.FCS" Version="0.75.3" />
+    <PackageVersion Include="Argu" Version="6.2.5" />
+    <PackageVersion Include="Expecto" Version="11.1.1" />
+  </ItemGroup>
+</Project>

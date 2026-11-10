@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Compile Include="Model.fs" />
+    <Compile Include="Metrics.fs" />
+  </ItemGroup>
+</Project>
