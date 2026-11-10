@@ -160,6 +160,47 @@ let tests =
                 }
         ]
 
+        testList "effect signals" [
+            let effects = lazy (extractFixture "CSharpEffects" "CSharpEffects.csproj")
+
+            let signalsOf name =
+                let found = effects.Value.Declarations |> List.filter (fun d -> d.Key.Name = name)
+                Expect.hasLength found 1 $"{name} is declared once"
+                found.Head.EffectSignals
+
+            let kindOf signal =
+                match signal with
+                | ReturnsUnit _ -> "ReturnsUnit"
+                | ReturnsAsync _ -> "ReturnsAsync"
+                | TakesUnit _ -> "TakesUnit"
+                | MutableState _ -> "MutableState"
+                | UsesEffectfulApi(_, api) -> $"UsesEffectfulApi {api}"
+
+            for name, expected in
+                [ "Logger", "ReturnsUnit"
+                  "Fetcher", "ReturnsAsync"
+                  "ValueFetcher", "ReturnsAsync"
+                  "Counter", "MutableState"
+                  "Settable", "MutableState"
+                  "StaticState", "MutableState"
+                  "MutableRecord", "MutableState"
+                  "Files", "UsesEffectfulApi System.IO.File"
+                  "Times", "UsesEffectfulApi System.DateTime.Now"
+                  "Ids", "UsesEffectfulApi System.Guid.NewGuid"
+                  "Terminal", "UsesEffectfulApi System.Console" ] do
+                test $"{name}: {expected}" {
+                    Expect.contains (signalsOf name |> List.map kindOf) expected "signal"
+                }
+
+            test "a signal names the member it came from" {
+                Expect.equal (signalsOf "Logger") [ ReturnsUnit "Write" ] "Logger.Write"
+            }
+
+            for name in
+                [ "PureFunctions"; "Data"; "InitOnly"; "WithReadonly"; "Point"; "Level"; "Handler"; "IPort"; "AbstractBase" ] do
+                test $"{name} is pure" { Expect.isEmpty (signalsOf name) "no signals" }
+        ]
+
         test "generated code declares nothing" {
             let names = dependencies.Value.Declarations |> List.map (fun d -> d.Key.Name)
             Expect.isFalse (names |> List.contains "GeneratedThing") "generated file"

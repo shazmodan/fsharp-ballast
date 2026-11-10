@@ -89,8 +89,59 @@ let private abstractionsOf (symbol: INamedTypeSymbol) =
     else
         Concrete, Concrete
 
-let private declare project (symbol: INamedTypeSymbol) : Declaration =
+let private asyncTypes =
+    set
+        [ "System.Threading.Tasks.Task"
+          "System.Threading.Tasks.Task`1"
+          "System.Threading.Tasks.ValueTask"
+          "System.Threading.Tasks.ValueTask`1" ]
+
+let private fullMetadataName (symbol: ITypeSymbol) =
+    match symbol with
+    | :? INamedTypeSymbol as named when not named.ContainingNamespace.IsGlobalNamespace ->
+        named.ContainingNamespace.ToDisplayString() + "." + named.OriginalDefinition.MetadataName
+    | _ -> symbol.MetadataName
+
+/// Signals from the members a type declares itself. Members the compiler synthesises, such as a
+/// positional record's Deconstruct or a property's backing field, are left out.
+let private memberSignals (symbol: INamedTypeSymbol) =
+    [ for item in symbol.GetMembers() do
+          if not item.IsImplicitlyDeclared then
+              match item with
+              | :? IMethodSymbol as method when method.MethodKind = MethodKind.Ordinary ->
+                  if method.ReturnsVoid then
+                      ReturnsUnit method.Name
+
+                  if asyncTypes.Contains(fullMetadataName method.ReturnType) then
+                      ReturnsAsync method.Name
+              | :? IPropertySymbol as property when not (isNull property.SetMethod) && not property.SetMethod.IsInitOnly ->
+                  MutableState property.Name
+              | :? IFieldSymbol as field when not field.IsReadOnly && not field.IsConst ->
+                  MutableState field.Name
+              | _ -> () ]
+
+/// The effectful framework API a symbol refers to, if any.
+let private effectfulApiOf (symbol: ISymbol) =
+    let namespaceOf (t: INamedTypeSymbol) =
+        if t.ContainingNamespace.IsGlobalNamespace then "" else t.ContainingNamespace.ToDisplayString()
+
+    match symbol with
+    | :? INamedTypeSymbol as named -> EffectfulApis.classify (namespaceOf named) named.Name None
+    | :? IMethodSymbol
+    | :? IPropertySymbol
+    | :? IFieldSymbol when not (isNull symbol.ContainingType) ->
+        EffectfulApis.classify (namespaceOf symbol.ContainingType) symbol.ContainingType.Name (Some symbol.Name)
+    | _ -> None
+
+let private declare project (apiSignals: EffectSignal list) (symbol: INamedTypeSymbol) : Declaration =
     let functional, classic = abstractionsOf symbol
+
+    // Interfaces and abstract classes are ports: their effects belong to whoever implements them.
+    let signals =
+        if functional = Abstract && classic = Abstract then
+            []
+        else
+            memberSignals symbol @ apiSignals |> List.distinct
 
     { Key = keyOf symbol
       Project = project
@@ -103,7 +154,7 @@ let private declare project (symbol: INamedTypeSymbol) : Declaration =
       FunctionalAbstraction = functional
       ClassicAbstraction = classic
       IsData = symbol.IsRecord || symbol.TypeKind = TypeKind.Enum
-      EffectSignals = [] }
+      EffectSignals = signals }
 
 /// The reference packs and FSharp.Core, which never count as dependencies.
 let private isFramework (compilation: Compilation) (symbol: INamedTypeSymbol) =
@@ -197,6 +248,7 @@ let private extractCompilation (compilation: Compilation) =
     let declared = Dictionary<DeclarationKey, INamedTypeSymbol>()
     let addDeclared (symbol: INamedTypeSymbol) = declared[keyOf symbol] <- symbol
     let edges = ResizeArray<Edge>()
+    let apiSignals = Dictionary<DeclarationKey, ResizeArray<EffectSignal>>()
 
     for tree in compilation.SyntaxTrees |> Seq.filter (isGenerated >> not) do
         let model = compilation.GetSemanticModel tree
@@ -238,6 +290,18 @@ let private extractCompilation (compilation: Compilation) =
                 | Some source ->
                     let symbol = model.GetSymbolInfo(node).Symbol
 
+                    // Effectful API uses are framework uses, so they are found before the framework filter.
+                    if not (isNull symbol) then
+                        match effectfulApiOf symbol with
+                        | Some api ->
+                            let key = keyOf source
+
+                            if not (apiSignals.ContainsKey key) then
+                                apiSignals[key] <- ResizeArray()
+
+                            apiSignals[key].Add(UsesEffectfulApi(source.Name, api))
+                        | None -> ()
+
                     let targets =
                         (if isNull symbol then [] else targetsOfSymbol symbol)
                         @ declaredTypes model node
@@ -247,7 +311,13 @@ let private extractCompilation (compilation: Compilation) =
                         edges.Add { From = keyOf source; To = keyOf target }
                 | None -> ()
 
-    declared.Values |> Seq.map (declare project) |> Seq.toList, List.ofSeq edges
+    let apiSignalsOf (symbol: INamedTypeSymbol) =
+        match apiSignals.TryGetValue(keyOf symbol) with
+        | true, signals -> List.ofSeq signals
+        | false, _ -> []
+
+    declared.Values |> Seq.map (fun symbol -> declare project (apiSignalsOf symbol) symbol) |> Seq.toList,
+    List.ofSeq edges
 
 let extract (compilations: Compilation list) : Extraction =
     let extracted = compilations |> List.map extractCompilation
