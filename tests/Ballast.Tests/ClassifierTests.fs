@@ -46,7 +46,12 @@ let tests =
               "OnlyTypes", NotCounted, NotCounted, false
               "OnlyModules", NotCounted, NotCounted, false
               "Nested", Concrete, Concrete, true
-              "InnerValues", Concrete, Concrete, false ] do
+              "InnerValues", Concrete, Concrete, false
+              "Instruction`1", Abstract, Concrete, true
+              "Program`1", Concrete, Concrete, true
+              "DataBox`1", Concrete, Concrete, true
+              "Holder`1", Concrete, Concrete, true
+              "AllNext`1", Concrete, Concrete, true ] do
             test name {
                 let declaration = classified.Value |> List.find (fun d -> d.Key.Name = name)
 

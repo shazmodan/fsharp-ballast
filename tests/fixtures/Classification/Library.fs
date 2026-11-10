@@ -62,6 +62,30 @@ module WithValues =
 module OnlyTypes =
     type Nested = { NestedValue: int }
 
+type UserId = int
+type User = { UserName: string }
+
+/// A free-monad instruction set: an effect interface written as a union.
+type Instruction<'next> =
+    | ReadUser of UserId * (User -> 'next)
+    | WriteUser of User * 'next
+
+/// The plumbing around it, which stays concrete.
+type Program<'a> =
+    | Free of Instruction<Program<'a>>
+    | Pure of 'a
+
+/// Near misses: a generic union holding data, one with an empty case, and one with no function.
+type DataBox<'a> = Box of 'a * int
+
+type Holder<'a> =
+    | Holding of 'a
+    | Empty
+
+type AllNext<'next> =
+    | Step of 'next
+    | Skip of int * 'next
+
 module OnlyModules =
     module InnerValues =
         let inner = 1
