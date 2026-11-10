@@ -218,7 +218,7 @@ Build each milestone test-first. Each one is done when its acceptance check pass
 
 **3. Scope index. Done 2026-11-10.** `ScopeIndex.ofParseTree`, `enclosing` and `isInOpen`, tested on parsed source for namespaces including `namespace global` and `namespace rec`, top-level, nested and implicit modules, `and` groups, augmentations, exceptions, `open` ranges, and attributes on types and modules. An augmentation is intrinsic when its type is declared in the same namespace or module, and otherwise belongs to the enclosing module. Milestone 4 must confirm that real compiler symbol ranges land in these scopes.
 
-**4. Symbol extraction.** Acceptance: one fixture per row of the target table in section 4, plus inferred return types, active patterns, extension methods, `inline` functions, SRTP, computation expressions and a file with an `.fsi` signature.
+**4. Symbol extraction. Done 2026-11-10.** `SymbolExtractor.extract` returns located declarations and de-duplicated edges, tested on real fixtures for every row of the target table in section 4, inferred return types, active patterns, extension methods, `inline` functions, SRTP, computation expressions, `.fsi` files, implicit file modules, cross-project references and `--include-external`. Scopes are linked to entities by position, because a type and module can share a name, and so can generic types of different arity. Framework assemblies are recognised as `FSharp.Core` or anything under a `packs` folder.
 
 **5. Classification.** Acceptance: one fixture declaration per row of the table in section 5, asserted under both profiles.
 

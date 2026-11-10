@@ -2,10 +2,12 @@
   <ItemGroup>
     <Compile Include="ProjectLoader.fs" />
     <Compile Include="ScopeIndex.fs" />
+    <Compile Include="SymbolExtractor.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Compiler.Service" />
     <PackageReference Include="Ionide.ProjInfo" />
     <PackageReference Include="Ionide.ProjInfo.FCS" />
+    <ProjectReference Include="..\Ballast.Core\Ballast.Core.fsproj" />
   </ItemGroup>
 </Project>

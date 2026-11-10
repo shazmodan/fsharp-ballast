@@ -3,9 +3,11 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Fixtures.fs" />
     <Compile Include="MetricsTests.fs" />
     <Compile Include="ProjectLoaderTests.fs" />
     <Compile Include="ScopeIndexTests.fs" />
+    <Compile Include="SymbolExtractorTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
