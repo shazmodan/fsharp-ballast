@@ -61,7 +61,7 @@ A value is shown as `-` when it is undefined. Instability needs at least one dep
 
 ### What counts as abstract
 
-With the default `fsharp` profile, these count as abstract: interfaces, abstract classes, type abbreviations of function types such as `type Clock = unit -> DateTime`, records whose fields are all functions, and delegates. With `--profile classic`, only interfaces and abstract classes do, which matches object-oriented tools.
+With the default `functional` profile, these count as abstract: interfaces, abstract classes, type abbreviations of function types such as `type Clock = unit -> DateTime`, records whose fields are all functions, and delegates. With `--profile classic`, only interfaces and abstract classes do, which matches object-oriented tools.
 
 ### What counts as a dependency
 
@@ -74,7 +74,7 @@ Dependencies on the .NET libraries and FSharp.Core never count. Dependencies on 
 | Option | Effect |
 | --- | --- |
 | `--level project\|namespace\|module` | What counts as a component. Default: `namespace` |
-| `--profile fsharp\|classic` | What counts as abstract. Default: `fsharp` |
+| `--profile functional\|classic` | What counts as abstract. Default: `functional` |
 | `--format table\|json\|csv\|html` | Report format. Default: `table` |
 | `--output <file>` | Write the report to a file instead of the console |
 | `--include-tests` | Include test projects, which are left out by default |

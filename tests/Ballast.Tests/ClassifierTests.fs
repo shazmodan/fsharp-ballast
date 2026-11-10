@@ -51,8 +51,8 @@ let tests =
                 let declaration = classified.Value |> List.find (fun d -> d.Key.Name = name)
 
                 Expect.equal
-                    (declaration.FSharpAbstraction, declaration.ClassicAbstraction, declaration.IsData)
+                    (declaration.FunctionalAbstraction, declaration.ClassicAbstraction, declaration.IsData)
                     (fsharp, classic, isData)
-                    "(fsharp profile, classic profile, is data)"
+                    "(functional profile, classic profile, is data)"
             }
     ]

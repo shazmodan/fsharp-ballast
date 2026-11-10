@@ -54,7 +54,43 @@ let private modulePathOf (symbol: INamedTypeSymbol) =
 
         String.concat "." (space @ names))
 
+/// A record whose positional parameters, at least one, are all delegates, such as Func or Action.
+let private isFunctionRecord (symbol: INamedTypeSymbol) =
+    let positional =
+        symbol.DeclaringSyntaxReferences
+        |> Seq.tryPick (fun reference ->
+            match reference.GetSyntax() with
+            | :? RecordDeclarationSyntax as record when not (isNull record.ParameterList) ->
+                Some(record.ParameterList.Parameters |> Seq.map (fun p -> p.Identifier.ValueText) |> List.ofSeq)
+            | _ -> None)
+
+    // The primary constructor is the one whose parameters carry the positional names.
+    match positional with
+    | Some names when symbol.IsRecord && not names.IsEmpty ->
+        symbol.InstanceConstructors
+        |> Seq.tryFind (fun c -> c.Parameters |> Seq.map (fun p -> p.Name) |> List.ofSeq = names)
+        |> Option.exists (fun c -> c.Parameters |> Seq.forall (fun p -> p.Type.TypeKind = TypeKind.Delegate))
+    | _ -> false
+
+let private hasOwnMembers (symbol: INamedTypeSymbol) =
+    symbol.GetMembers() |> Seq.exists (fun m -> not (m :? INamedTypeSymbol) && not m.IsImplicitlyDeclared)
+
+/// The abstraction under the functional profile and the classic profile, mirroring the F# rules.
+let private abstractionsOf (symbol: INamedTypeSymbol) =
+    if symbol.TypeKind = TypeKind.Interface then
+        Abstract, Abstract
+    elif symbol.TypeKind = TypeKind.Class && symbol.IsAbstract && not symbol.IsStatic then
+        Abstract, Abstract
+    elif symbol.TypeKind = TypeKind.Delegate || isFunctionRecord symbol then
+        Abstract, Concrete
+    elif symbol.IsStatic && not (hasOwnMembers symbol) then
+        NotCounted, NotCounted
+    else
+        Concrete, Concrete
+
 let private declare project (symbol: INamedTypeSymbol) : Declaration =
+    let functional, classic = abstractionsOf symbol
+
     { Key = keyOf symbol
       Project = project
       NamespacePath =
@@ -63,10 +99,9 @@ let private declare project (symbol: INamedTypeSymbol) : Declaration =
         else
             symbol.ContainingNamespace.ToDisplayString()
       ModulePath = modulePathOf symbol
-      // Classification arrives in milestone 13; until then every C# declaration is concrete.
-      FSharpAbstraction = Concrete
-      ClassicAbstraction = Concrete
-      IsData = false }
+      FunctionalAbstraction = functional
+      ClassicAbstraction = classic
+      IsData = symbol.IsRecord || symbol.TypeKind = TypeKind.Enum }
 
 /// The reference packs and FSharp.Core, which never count as dependencies.
 let private isFramework (compilation: Compilation) (symbol: INamedTypeSymbol) =

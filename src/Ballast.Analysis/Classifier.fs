@@ -13,7 +13,7 @@ let private isFunctionRecord (entity: FSharpEntity) =
     && entity.FSharpFields.Count > 0
     && entity.FSharpFields |> Seq.forall (fun field -> isFunction field.FieldType)
 
-/// The classification under the fsharp profile and the classic profile.
+/// The classification under the functional profile and the classic profile.
 let private abstractionsOf (entity: FSharpEntity) =
     if entity.IsMeasure then
         NotCounted, NotCounted
@@ -31,7 +31,7 @@ let private abstractionsOf (entity: FSharpEntity) =
     else
         Concrete, Concrete
 
-/// The abstraction under the fsharp profile, under the classic profile, and whether it is a data type.
+/// The abstraction under the functional profile, under the classic profile, and whether it is a data type.
 let classify (entity: FSharpEntity) : Abstraction * Abstraction * bool =
-    let fsharp, classic = abstractionsOf entity
-    fsharp, classic, entity.IsFSharpRecord || entity.IsFSharpUnion || entity.IsEnum
+    let functional, classic = abstractionsOf entity
+    functional, classic, entity.IsFSharpRecord || entity.IsFSharpUnion || entity.IsEnum

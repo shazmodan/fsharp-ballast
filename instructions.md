@@ -42,7 +42,7 @@ Zones, reported only when `D` exceeds the distance threshold (default `0.5`):
 | Nesting | Flat. `App.Domain` does not include `App.Domain.Orders` | Keeps the numbers simple to explain. Same approach as NDepend. |
 | External dependencies | Excluded by default. `--include-external` counts NuGet packages | Counting `FSharp.Core` and the BCL would push every component towards `I = 1`. BCL and `FSharp.Core` stay excluded even with the flag. |
 | Test projects | Excluded by default. `--include-tests` keeps them | Tests inflate `Ca` for everything they touch. Detect with the MSBuild `IsTestProject` property. |
-| Abstractness | `--profile fsharp\|classic`, default `fsharp` | F# expresses abstraction with function types and records of functions as well as interfaces. `classic` allows comparison with OO tools. |
+| Abstractness | `--profile functional\|classic`, default `functional` (named `fsharp` until 2026-11-10) | F# expresses abstraction with function types and records of functions as well as interfaces. `classic` allows comparison with OO tools. |
 | Visibility | Private and internal declarations are counted | Matches Martin's definition, which counts all classes. |
 | Signature files | `.fsi` files are not analysed in v1, and do not count as abstraction | An implementation must conform to its signature, so the `.fs` file carries the dependencies. |
 
@@ -95,7 +95,7 @@ type Declaration =
       Project: string
       NamespacePath: string
       ModulePath: string option
-      FSharpAbstraction: Abstraction
+      FunctionalAbstraction: Abstraction
       ClassicAbstraction: Abstraction
       IsData: bool }
 
@@ -153,11 +153,11 @@ Then build the edge set:
 
 `IsData` is true for records, unions and enums. `DataShare` then counts only those that are `Concrete` under the selected profile.
 
-| F# construct | Detection | In `Nc`? | `fsharp` profile | `classic` profile |
+| F# construct | Detection | In `Nc`? | `functional` profile | `classic` profile |
 | --- | --- | --- | --- | --- |
 | Interface | `IsInterface` | Yes | Abstract | Abstract |
 | Abstract class | `IsAbstractClass` | Yes | Abstract | Abstract |
-| Function abbreviation, `type Clock = unit -> DateTime` | `IsFSharpAbbreviation` and `AbbreviatedType.IsFunctionType` | `fsharp` only | Abstract | Not counted |
+| Function abbreviation, `type Clock = unit -> DateTime` | `IsFSharpAbbreviation` and `AbbreviatedType.IsFunctionType` | `functional` only | Abstract | Not counted |
 | Other abbreviation, `type Id = int` | `IsFSharpAbbreviation` | No | Not counted | Not counted |
 | Record with at least one field, all function-typed | `IsFSharpRecord`, check `FSharpFields` | Yes | Abstract | Concrete |
 | Delegate | `IsDelegate` | Yes | Abstract | Concrete |
@@ -175,7 +175,7 @@ A `NotCounted` declaration is still a source and target of edges. It is excluded
 ```
 fsharp-ballast <path-to-sln-slnx-or-fsproj>
     [--level project|namespace|module]     default: namespace
-    [--profile fsharp|classic]             default: fsharp
+    [--profile functional|classic]         default: functional
     [--format table|json|csv|html]         default: table
     [--output <file>]
     [--include-tests]
@@ -195,7 +195,7 @@ Sort table output by `D`, highest first. Compute with unrounded `float` and roun
 ```json
 {
   "level": "namespace",
-  "profile": "fsharp",
+  "profile": "functional",
   "components": [
     { "name": "App::App.Domain", "nc": 2, "na": 0, "ca": 1, "ce": 0,
       "a": 0.0, "i": 0.0, "d": 1.0, "dataShare": 0.5, "zone": "pain" }
@@ -274,7 +274,7 @@ type Order = { Id: int }
 
 | Profile | Nc | Na | A |
 | --- | --- | --- | --- |
-| `fsharp` | 3 | 2 | 0.667 |
+| `functional` | 3 | 2 | 0.667 |
 | `classic` | 2 | 0 | 0.000 |
 
 ### Also add

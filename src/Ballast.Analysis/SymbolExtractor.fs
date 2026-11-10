@@ -66,13 +66,13 @@ let rec private modulePathOf (entity: FSharpEntity) =
         entity.DeclaringEntity |> Option.bind modulePathOf
 
 let private declare project (entity: FSharpEntity) : Declaration =
-    let fsharp, classic, isData = Classifier.classify entity
+    let functional, classic, isData = Classifier.classify entity
 
     { Key = keyOf entity
       Project = project
       NamespacePath = namespaceOf entity
       ModulePath = modulePathOf entity
-      FSharpAbstraction = fsharp
+      FunctionalAbstraction = functional
       ClassicAbstraction = classic
       IsData = isData }
 

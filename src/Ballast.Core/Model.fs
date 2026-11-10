@@ -16,7 +16,7 @@ type Declaration =
       Project: string
       NamespacePath: string
       ModulePath: string option
-      FSharpAbstraction: Abstraction
+      FunctionalAbstraction: Abstraction
       ClassicAbstraction: Abstraction
       /// True for records, unions and enums, whatever their abstraction.
       IsData: bool }

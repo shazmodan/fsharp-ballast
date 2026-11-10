@@ -8,7 +8,7 @@ type Level =
 
 [<RequireQualifiedAccess>]
 type Profile =
-    | FSharp
+    | Functional
     | Classic
 
 type Options =
@@ -38,7 +38,7 @@ let calculate (options: Options) (declarations: Declaration list) (edges: Edge l
     |> List.map (fun (name, members) ->
         let abstraction (d: Declaration) =
             match options.Profile with
-            | Profile.FSharp -> d.FSharpAbstraction
+            | Profile.Functional -> d.FunctionalAbstraction
             | Profile.Classic -> d.ClassicAbstraction
 
         let nc = members |> List.filter (fun d -> abstraction d <> NotCounted) |> List.length

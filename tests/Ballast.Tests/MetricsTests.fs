@@ -6,7 +6,7 @@ open Ballast.Core.Metrics
 
 let options =
     { Level = Level.Namespace
-      Profile = Profile.FSharp
+      Profile = Profile.Functional
       DistanceThreshold = 0.5 }
 
 let declaration abstraction ns name =
@@ -14,7 +14,7 @@ let declaration abstraction ns name =
       Project = "App"
       NamespacePath = ns
       ModulePath = None
-      FSharpAbstraction = abstraction
+      FunctionalAbstraction = abstraction
       ClassicAbstraction = abstraction
       IsData = false }
 
@@ -237,7 +237,7 @@ let tests =
             let share profile =
                 (calculate { options with Profile = profile } declarations [] |> componentNamed ns).DataShare
 
-            expectClose (share Profile.FSharp) 0.3333333333 "fsharp: Repo is abstract, so only Order is data"
+            expectClose (share Profile.Functional) 0.3333333333 "functional: Repo is abstract, so only Order is data"
             expectClose (share Profile.Classic) 0.6666666667 "classic: Repo is concrete data"
 
             let nothingCounted =

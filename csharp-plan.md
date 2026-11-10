@@ -25,7 +25,7 @@ Not in scope: Visual Basic, cross-language analysis of reflection, and source ge
 | Declaration identity | The existing `DeclarationKey`. For C#: assembly name; containing namespace and containing types' `MetadataName`s as `Path`, or `global` when there are none; and `MetadataName` as `Name` | The spike confirmed these keys equal the ones FCS builds for the same C# types (section 8, item 3). |
 | Mixed solutions, F# referencing C# | Compile the referenced C# project with Roslyn to an in-memory, metadata-only assembly, and give it to FCS as a referenced project | Keeps the "restore, never build" promise (spike item 4). |
 | Mixed solutions, C# referencing F# | Not supported at first. Fail with a clear message, and suggest building first or excluding the project | Roslyn needs F# metadata, and producing it means compiling the F# project. Revisit after milestone 14. |
-| Profile names | Add `functional` as an alias for the `fsharp` profile. Keep `fsharp` working | "fsharp" reads oddly on C# code, and renaming would break existing CI scripts. |
+| Profile names | Rename the `fsharp` profile to `functional`, keeping `classic`. Decided 2026-11-10 | "fsharp" reads oddly on C# code, and the tool is unpublished, so no scripts depend on the old name. |
 
 ## 3. Architecture changes
 
@@ -48,7 +48,7 @@ Not in scope: Visual Basic, cross-language analysis of reflection, and source ge
 
 A declaration is every named type in source: class, struct, interface, enum, delegate, record class and record struct. Nested types are separate declarations, as types nested in F# modules are. A partial type is one declaration, because Roslyn gives all its parts one symbol.
 
-| C# construct | Detection | In `Nc`? | `fsharp`/`functional` | `classic` | `IsData` |
+| C# construct | Detection | In `Nc`? | `functional` | `classic` | `IsData` |
 | --- | --- | --- | --- | --- | --- |
 | Interface | `TypeKind.Interface` | Yes | Abstract | Abstract | No |
 | Abstract class | `IsAbstract`, not `IsStatic` | Yes | Abstract | Abstract | No |
@@ -107,13 +107,13 @@ Build each one test-first at seams agreed before the tests, as before.
 
 **12. C# extraction. Done 2026-11-10.** `CSharpExtractor.extract` returns declarations and edges from Roslyn compilations, and the pipeline merges them with the F# extraction. It is tested on a `CSharpDependencies` fixture with one source type per row of section 5, plus partial, nested, file-local and static-class types, top-level statements, an auto-generated file, the implicit-usings file under `obj`, and six cases that must create no dependency. A CLI test checks a C# solution's metrics end to end. Every C# declaration is `Concrete` with `IsData` false until milestone 13. A C# component's project name is the compilation's assembly name. Roslyn binds the `var` keyword to the inferred type, so symbol information alone covers `var`, while lambda parameters need the declared-type walk.
 
-**13. C# classification.** Acceptance: one fixture declaration per row of the table in section 4, under both profiles, plus the `functional` alias.
+**13. C# classification. Done 2026-11-10.** `CSharpExtractor` classifies each declaration by the table in section 4, tested with one fixture declaration per row under both profiles. The fixture adds harder variants: a class with only virtual members (concrete), a record of a custom delegate type, an empty record, a record whose delegates are body properties rather than positional (concrete), and an abstract record (abstract, and still data). The `fsharp` profile is renamed `functional`, which is the default, and `--profile fsharp` is now rejected. The internal names `Profile.FSharp` and `FSharpAbstraction` are now `Profile.Functional` and `FunctionalAbstraction`, and the README and `instructions.md` use the new name.
 
 **14. Mixed solutions.** F#-to-C# edges through the in-memory metadata assembly, cross-language keys, and the clear failure for C# referencing F#. Acceptance: a mixed fixture with a hand-calculated metrics table, as in `instructions.md` section 8, and a test for the C#-to-F# message.
 
 **15. Implicit C# dependencies.** Walk `IOperation` for conversions, operators, `foreach`, `await`, collection initialisers and deconstruction. Acceptance: one fixture source type per case.
 
-**16. CLI, reports and README.** Language-neutral wording in usage and README, the `functional` alias, and C# examples. Acceptance: the C# Layered example matches its table in all four formats.
+**16. CLI, reports and README.** Language-neutral wording in usage and README, and C# examples. Acceptance: the C# Layered example matches its table in all four formats.
 
 **17. Real-world validation.** Run on a C# library, a C# application and a mixed solution, spot-check about 20 edges each, and record time and memory. Running other repositories' builds needs your approval, as it did for milestone 7. Acceptance: no crashes, and every wrong-looking edge is explained or fixed.
 
@@ -141,5 +141,5 @@ Not tested in the spike, and left to milestones 11 to 14: source generators, `fi
 ## 9. Decisions for you
 
 - **C# referencing F#.** Accept a clear failure at first, as planned, or build the referenced F# projects automatically and give up "never builds" for that case.
-- **Profile alias.** Add `functional` as planned, or rename the `fsharp` profile outright.
+- **Profile names.** Decided on 2026-11-10: the profiles are `functional` and `classic`.
 - **Tool name.** The tool is called `fsharp-ballast`. Keep it, or rename it once it measures C# too.

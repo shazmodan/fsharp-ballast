@@ -8,7 +8,7 @@ let private declaration assembly name =
       Project = assembly
       NamespacePath = "Space"
       ModulePath = None
-      FSharpAbstraction = Concrete
+      FunctionalAbstraction = Concrete
       ClassicAbstraction = Concrete
       IsData = false }
 

@@ -108,6 +108,41 @@ let tests =
             Expect.equal (targetsOf hidden.Head.Key.Name dependencies.Value) [ "Order" ] "depends on Order"
         }
 
+        testList "classification" [
+            let classified = lazy (extractFixture "CSharpClassification" "CSharpClassification.csproj")
+
+            for name, functional, classic, isData in
+                [ "IPort", Abstract, Abstract, false
+                  "AbstractBase", Abstract, Abstract, false
+                  "WithVirtual", Concrete, Concrete, false
+                  "Callback", Abstract, Concrete, false
+                  "FunctionRecord", Abstract, Concrete, true
+                  "CallbackRecord", Abstract, Concrete, true
+                  "MixedRecord", Concrete, Concrete, true
+                  "PlainRecord", Concrete, Concrete, true
+                  "EmptyRecord", Concrete, Concrete, true
+                  "BodyRecord", Concrete, Concrete, true
+                  "AbstractRecord", Abstract, Abstract, true
+                  "StructRecord", Concrete, Concrete, true
+                  "Level", Concrete, Concrete, true
+                  "WithMembers", Concrete, Concrete, false
+                  "OnlyTypes", NotCounted, NotCounted, false
+                  "Nested", Concrete, Concrete, false
+                  "Service", Concrete, Concrete, false
+                  "Coordinate", Concrete, Concrete, false
+                  "FailedException", Concrete, Concrete, false
+                  "MarkerAttribute", Concrete, Concrete, false
+                  "Program", Concrete, Concrete, false ] do
+                test name {
+                    let declaration = classified.Value.Declarations |> List.find (fun d -> d.Key.Name = name)
+
+                    Expect.equal
+                        (declaration.FunctionalAbstraction, declaration.ClassicAbstraction, declaration.IsData)
+                        (functional, classic, isData)
+                        "(functional profile, classic profile, is data)"
+                }
+        ]
+
         test "generated code declares nothing" {
             let names = dependencies.Value.Declarations |> List.map (fun d -> d.Key.Name)
             Expect.isFalse (names |> List.contains "GeneratedThing") "generated file"

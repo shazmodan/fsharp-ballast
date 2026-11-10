@@ -42,13 +42,13 @@ let private levelOf option =
 
 let private profileOf option =
     match option with
-    | Fsharp -> Metrics.Profile.FSharp, "fsharp"
+    | Functional -> Metrics.Profile.Functional, "functional"
     | Classic -> Metrics.Profile.Classic, "classic"
 
 let private execute (arguments: ParseResults<Arguments>) (stdout: TextWriter) (stderr: TextWriter) =
     let path = arguments.GetResult Path
     let level, levelName = levelOf (arguments.GetResult(Level, defaultValue = LevelOption.Namespace))
-    let profile, profileName = profileOf (arguments.GetResult(Profile, defaultValue = Fsharp))
+    let profile, profileName = profileOf (arguments.GetResult(Profile, defaultValue = Functional))
     let threshold = arguments.GetResult(Distance_Threshold, defaultValue = 0.5)
     let maxDistance = arguments.TryGetResult Max_Distance
 

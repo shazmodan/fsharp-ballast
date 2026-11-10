@@ -103,6 +103,21 @@ let tests =
                 (2, 0, 0, 0, Some 0.0, None, None, None)
         }
 
+        test "functional is the default profile and the report names it" {
+            let run = runOnFixture "FunctionalPorts" "FunctionalPorts.fsproj" [ "--format"; "json" ]
+
+            Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
+            use document = JsonDocument.Parse run.Output
+            Expect.equal (document.RootElement.GetProperty("profile").GetString()) "functional" "reported profile"
+        }
+
+        test "--profile fsharp is no longer accepted" {
+            let run = runCli [ "Some.fsproj"; "--profile"; "fsharp" ]
+
+            Expect.equal run.ExitCode 2 "exit code"
+            Expect.stringContains run.Errors "--profile" "names the option"
+        }
+
         test "--level project measures whole projects" {
             let run = runOnFixture "TwoProjects" "TwoProjects.slnx" [ "--format"; "json"; "--level"; "project" ]
 

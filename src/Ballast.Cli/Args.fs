@@ -14,7 +14,7 @@ type LevelOption =
     | Module
 
 type ProfileOption =
-    | Fsharp
+    | Functional
     | Classic
 
 type Arguments =
@@ -37,7 +37,7 @@ type Arguments =
             match this with
             | Path _ -> "the .fsproj, .sln or .slnx file to analyse."
             | Level _ -> "what counts as a component: project, namespace or module (default: namespace)."
-            | Profile _ -> "what counts as abstract: fsharp or classic (default: fsharp)."
+            | Profile _ -> "what counts as abstract: functional or classic (default: functional)."
             | Format _ -> "report format: table, json, csv or html (default: table)."
             | Output _ -> "write the report to this file instead of the console."
             | Include_Tests -> "include test projects, which are left out by default."
