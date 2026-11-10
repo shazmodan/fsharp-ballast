@@ -1,6 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>fsharp-ballast</ToolCommandName>
+    <PackageId>fsharp-ballast</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Measures Abstractness, Instability and Distance from the Main Sequence for F# projects and solutions.</Description>
+    <PackageTags>fsharp;metrics;architecture;coupling;static-analysis</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Run on newer .NET runtimes than the one the tool was built for. -->
+    <RollForward>Major</RollForward>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Args.fs" />
@@ -8,6 +17,9 @@
     <Compile Include="HtmlReport.fs" />
     <Compile Include="Cli.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Argu" />

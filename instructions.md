@@ -229,7 +229,7 @@ Build each milestone test-first. Each one is done when its acceptance check pass
 - This repository, 2026-11-10: no crash, 21.5 s and about 430 MB peak for 4 projects, 45 declarations and 135 edges. All 20 sampled edges were correct, and spot checks for expected and absent edges passed. A component count that looked one short was correct: the `Args` module holds only types, so it is not counted.
 - Open-source projects: skipped for now by decision on 2026-11-10, so the acceptance check is met only for this repository. Argu 6.2.5 (library) and FSharpLint 0.27.2 (application) were chosen but not run. Restoring and evaluating them executes their MSBuild logic, which needs explicit approval. Argu's `global.json` pins .NET SDK 6.0.402, which is not installed, so it is expected to fail restore with a clear message unless the pin is relaxed in the local copy.
 
-**8. Packaging.** Set `PackAsTool` with the command name `fsharp-ballast`, and write a README covering the metrics, flags and CI use. Acceptance: `dotnet tool install` from a local package works, and the installed tool analyses a fixture.
+**8. Packaging. Done 2026-11-10.** `Ballast.Cli` packs as the dotnet tool `fsharp-ballast` 0.1.0 with `RollForward` set to `Major`, and `README.md` covers the metrics, flags and CI use. Installed with `--tool-path` from a local package, the tool printed usage, analysed the Layered fixture, and exited with code 1 under `--max-distance 0.5`. The package has not been published.
 
 ## 8. Hand-calculated fixtures
 
