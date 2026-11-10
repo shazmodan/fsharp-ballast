@@ -14,5 +14,5 @@ let analyse (options: AnalyseOptions) (path: string) : Result<ComponentMetrics l
     |> Result.bind (fun solution ->
         check solution
         |> Result.map (fun results ->
-            let merged = Extraction.merge options.IncludeExternal [ SymbolExtractor.extract solution results ]
+            let merged = Extraction.merge options.IncludeExternal [ SymbolExtractor.extract solution results.FSharp ]
             Metrics.calculate options.Metrics merged.Declarations merged.Edges))

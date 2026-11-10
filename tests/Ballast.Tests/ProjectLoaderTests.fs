@@ -13,6 +13,9 @@ let private projectNames (solution: LoadedSolution) =
     |> List.map (fun p -> Path.GetFileNameWithoutExtension p.ProjectFileName)
     |> List.sort
 
+let private csharpNames (solution: LoadedSolution) =
+    solution.CSharpProjects |> List.map Path.GetFileNameWithoutExtension |> List.sort
+
 let private expectLoadFailure (result: Result<LoadedSolution, AnalysisError>) (fragment: string) =
     match result with
     | Error(ProjectLoadFailed(_, message)) -> Expect.stringContains message fragment "failure message"
@@ -72,7 +75,7 @@ let tests =
 
                 let results = Expect.wantOk (check solution) "check"
 
-                Expect.hasLength results 2 "one result per project"
+                Expect.hasLength results.FSharp 2 "one result per project"
                 let builtFiles = Directory.GetFiles(Path.Combine(directory, "Lib", "bin"), "*", SearchOption.AllDirectories)
                 Expect.isEmpty builtFiles "nothing was built")
         }
@@ -90,22 +93,88 @@ let tests =
                 | other -> failtest $"expected a compilation failure, got {other}")
         }
 
-        test "C# projects in a mixed solution are left out" {
+        test "a mixed solution loads both its F# and its C# projects" {
             withFixture "Mixed" (fun directory ->
                 let solution = Expect.wantOk (load restoring (Path.Combine(directory, "Mixed.sln"))) "load"
 
-                Expect.equal (projectNames solution) [ "FSharpPart" ] "projects")
+                Expect.equal (projectNames solution) [ "FSharpPart" ] "F# projects"
+                Expect.equal (csharpNames solution) [ "CSharpPart" ] "C# projects")
         }
 
-        test "a solution with no F# projects is a load failure" {
+        test "a C#-only solution loads its C# projects" {
             withFixture "CSharpOnly" (fun directory ->
-                expectLoadFailure (load restoring (Path.Combine(directory, "CSharpOnly.sln"))) "No F# projects")
+                let solution = Expect.wantOk (load restoring (Path.Combine(directory, "CSharpOnly.sln"))) "load"
+
+                Expect.isEmpty solution.Projects "no F# projects"
+                Expect.equal (csharpNames solution) [ "CSharpPart" ] "C# projects")
+        }
+
+        test "a C# project file loads on its own" {
+            withFixture "CSharpProjects" (fun directory ->
+                let solution = Expect.wantOk (load restoring (Path.Combine(directory, "Lib", "Lib.csproj"))) "load"
+
+                Expect.equal (csharpNames solution) [ "Lib" ] "C# projects")
+        }
+
+        test "a C#-only .slnx loads every C# project" {
+            withFixture "CSharpProjects" (fun directory ->
+                let solution = Expect.wantOk (load restoring (Path.Combine(directory, "CSharpProjects.slnx"))) "load"
+
+                Expect.equal (csharpNames solution) [ "App"; "Lib" ] "C# projects")
+        }
+
+        test "a solution with no F# or C# projects is a load failure" {
+            withFixture "EmptySolution" (fun directory ->
+                expectLoadFailure (load restoring (Path.Combine(directory, "EmptySolution.slnx"))) "No F# or C# projects")
+        }
+
+        test "a malformed C# project is a load failure that explains why" {
+            withFixture "CSharpMalformed" (fun directory ->
+                expectLoadFailure (load restoring (Path.Combine(directory, "CSharpMalformed.csproj"))) "MSB4025")
+        }
+
+        test "an unrestored C# project is a load failure when restore is turned off" {
+            withFixture "CSharpProjects" (fun directory ->
+                expectLoadFailure (load notRestoring (Path.Combine(directory, "Lib", "Lib.csproj"))) "not restored")
+        }
+
+        test "C# projects compile with Roslyn across their project reference without being built" {
+            withFixture "CSharpProjects" (fun directory ->
+                let solution = Expect.wantOk (load restoring (Path.Combine(directory, "CSharpProjects.slnx"))) "load"
+                let results = Expect.wantOk (check solution) "check"
+
+                Expect.isEmpty results.FSharp "no F# results"
+                Expect.equal (results.CSharp |> List.map (fun c -> c.AssemblyName) |> List.sort) [ "App"; "Lib" ] "compilations"
+                let builtFiles = Directory.GetFiles(Path.Combine(directory, "Lib", "bin"), "*.dll", SearchOption.AllDirectories)
+                Expect.isEmpty builtFiles "nothing was built")
+        }
+
+        test "a mixed solution checks both languages" {
+            withFixture "Mixed" (fun directory ->
+                let solution = Expect.wantOk (load restoring (Path.Combine(directory, "Mixed.sln"))) "load"
+                let results = Expect.wantOk (check solution) "check"
+
+                Expect.hasLength results.FSharp 1 "F# results"
+                Expect.equal (results.CSharp |> List.map (fun c -> c.AssemblyName)) [ "CSharpPart" ] "C# compilations")
+        }
+
+        test "a C# type error fails the check and says where" {
+            withFixture "CSharpTypeError" (fun directory ->
+                let solution = Expect.wantOk (load restoring (Path.Combine(directory, "CSharpTypeError.csproj"))) "load"
+
+                match check solution with
+                | Error(CompilationFailed(project, errors)) ->
+                    Expect.equal project "CSharpTypeError" "project"
+                    Expect.hasLength errors 1 "errors"
+                    Expect.stringContains errors.Head "Bad.cs(3," "location"
+                    Expect.stringContains errors.Head "CS0029" "error id"
+                | other -> failtest $"expected a compilation failure, got {other}")
         }
 
         test "a file that is not a project or solution is a load failure" {
             withFixture "TypeError" (fun directory ->
                 let path = Path.Combine(directory, "Bad.fs")
 
-                expectLoadFailure (load notRestoring path) "Expected a .fsproj, .sln or .slnx file")
+                expectLoadFailure (load notRestoring path) "Expected a .fsproj, .csproj, .sln or .slnx file")
         }
     ]

@@ -23,6 +23,8 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Argu" />
+    <!-- ExcludeAssets does not flow from Ballast.Analysis, so each executable repeats it. -->
+    <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="runtime" />
     <ProjectReference Include="..\Ballast.Core\Ballast.Core.fsproj" />
     <ProjectReference Include="..\Ballast.Analysis\Ballast.Analysis.fsproj" />
   </ItemGroup>

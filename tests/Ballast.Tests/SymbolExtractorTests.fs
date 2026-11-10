@@ -15,7 +15,7 @@ let private extractFixture name relativePath includeExternal =
         let path = Path.Combine(directory, relativePath)
         let solution = Expect.wantOk (load defaultLoadOptions path) "load"
         let results = Expect.wantOk (check solution) "check"
-        Extraction.merge includeExternal [ extract solution results ])
+        Extraction.merge includeExternal [ extract solution results.FSharp ])
 
 let private dependencies =
     lazy (extractFixture "Dependencies" "Dependencies.fsproj" internalOnly)

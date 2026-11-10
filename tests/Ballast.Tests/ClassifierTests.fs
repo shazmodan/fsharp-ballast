@@ -16,7 +16,7 @@ let private classified =
 
             let results = Expect.wantOk (check solution) "check"
 
-            (extract solution results).Declarations))
+            (extract solution results.FSharp).Declarations))
 
 [<Tests>]
 let tests =

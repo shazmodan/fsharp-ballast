@@ -39,7 +39,8 @@ Not in scope: Visual Basic, cross-language analysis of reflection, and source ge
    -> Report     unchanged
 ```
 
-- `Ballast.Analysis` keeps the F# code. A new `Ballast.Analysis.CSharp` project holds the Roslyn code, so F#-only users don't depend on Roslyn's analysis code paths. Both are packed into the tool.
+- The Roslyn code lives in `Ballast.Analysis` beside the F# code, decided on 2026-11-10. A separate project would have needed `Pipeline` moved into `Ballast.Cli` to avoid a circular reference, and both are packed into the same tool anyway.
+- Every executable that references `Ballast.Analysis` must repeat the `Microsoft.Build.Framework` reference with `ExcludeAssets="runtime"`, because the exclusion does not flow to referencing projects.
 - `SymbolExtractor.LocatedDeclaration` currently carries an `FSharpEntity` for `Classifier` to read. Classification moves into each language's extraction, so that `Extraction` contains `Ballast.Core.Declaration` directly.
 - The rule "drop edges to targets outside the analysed set" moves from each extractor to the merge step, because only after merging is the whole analysed set known.
 
@@ -102,7 +103,7 @@ Build each one test-first at seams agreed before the tests, as before.
 
 **10. Language-neutral pipeline. Done 2026-11-10.** `SymbolExtractor.extract` returns a `Ballast.Core.Extraction` of classified `Declaration` values and every non-framework edge, NuGet included. `Classifier.classify` now takes an `FSharpEntity`. The new pure `Extraction.merge` in `Ballast.Core` unites extractions and drops self-edges, duplicates, and edges whose target is undeclared, keeping external-package targets only with `--include-external`. It has 4 tests on hand-built inputs. All 129 earlier tests pass, with only their input-building helpers changed.
 
-**11. C# loading and checking.** The loader sends `.csproj` files to Roslyn through `MSBuildWorkspace`, and C# compile errors become `CompilationFailed` with file, line and error id. Acceptance: fixtures for a C# project, a C#-only `.slnx`, a C# type error and a C# project that cannot load.
+**11. C# loading and checking. Done 2026-11-10.** `ProjectLoader.load` accepts `.csproj` files and returns a solution's C# project paths beside the F# options. `ProjectLoader.check` returns a `CheckedSolution` holding the F# results and the Roslyn compilations. C# errors become `CompilationFailed` with file, line and error id, and nothing is built. Tested with fixtures for a C# project, a C#-only `.slnx` with a project reference, a mixed solution, a C# type error, a malformed C# project, an unrestored C# project and an empty solution. Until milestone 12, C# projects compile but contribute no components. The packed tool was checked end to end on the same fixtures.
 
 **12. C# extraction.** Declarations, locations and edges for every row in section 5, apart from the implicit calls. Acceptance: a `CSharpDependencies` fixture with one source type per row, plus partial types, nested types, file-local types, top-level statements and generated code.
 

@@ -1,7 +1,10 @@
 module Ballast.Analysis.ProjectLoader
 
+open System
 open System.Diagnostics
 open System.IO
+open Microsoft.CodeAnalysis
+open Microsoft.CodeAnalysis.MSBuild
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Diagnostics
 open Ionide.ProjInfo
@@ -25,6 +28,9 @@ type AnalysisError =
 
 type LoadedSolution =
     { Projects: FSharpProjectOptions list
+      CSharpProjects: string list
+      /// MSBuild global properties from the options, such as Configuration, for loading C# projects the same way.
+      Properties: (string * string) list
       Checker: FSharpChecker }
 
 let private restore (path: string) =
@@ -40,8 +46,10 @@ let private restore (path: string) =
 let load (options: LoadOptions) (path: string) : Result<LoadedSolution, AnalysisError> =
     let fullPath = Path.GetFullPath path
 
+    let isProjectFile (file: string) = file.EndsWith ".fsproj" || file.EndsWith ".csproj"
+
     let isSupported =
-        [ ".fsproj"; ".sln"; ".slnx" ] |> List.contains (Path.GetExtension(fullPath).ToLowerInvariant())
+        [ ".fsproj"; ".csproj"; ".sln"; ".slnx" ] |> List.contains (Path.GetExtension(fullPath).ToLowerInvariant())
 
     let exitCode, restoreOutput =
         if File.Exists fullPath && isSupported && options.Restore then
@@ -52,7 +60,7 @@ let load (options: LoadOptions) (path: string) : Result<LoadedSolution, Analysis
     if not (File.Exists fullPath) then
         Error(ProjectLoadFailed(fullPath, "File not found."))
     elif not isSupported then
-        Error(ProjectLoadFailed(fullPath, "Expected a .fsproj, .sln or .slnx file."))
+        Error(ProjectLoadFailed(fullPath, "Expected a .fsproj, .csproj, .sln or .slnx file."))
     elif exitCode <> 0 then
         Error(ProjectLoadFailed(fullPath, $"dotnet restore failed:\n{restoreOutput.Trim()}"))
     else
@@ -64,27 +72,72 @@ let load (options: LoadOptions) (path: string) : Result<LoadedSolution, Analysis
         let loader = WorkspaceLoader.Create(tools, globalProperties)
 
         let loaded =
-            if fullPath.EndsWith ".fsproj" then
+            if isProjectFile fullPath then
                 loader.LoadProjects [ fullPath ]
             else
                 loader.LoadSln fullPath
-            |> Seq.filter (fun p -> p.ProjectFileName.EndsWith ".fsproj")
+            |> Seq.filter (fun p -> isProjectFile p.ProjectFileName)
             |> Seq.filter (fun p -> options.IncludeTests || not p.ProjectSdkInfo.IsTestProject)
             |> Seq.toList
 
         // Ionide evaluates an unrestored project without reporting a failure, and RestoreSuccess stays true.
+        // Roslyn does not report it either, so this check covers C# projects too.
         match loaded |> List.tryFind (fun (p: ProjectOptions) -> not (File.Exists p.ProjectSdkInfo.ProjectAssetsFile)) with
         | Some unrestored ->
             Error(ProjectLoadFailed(unrestored.ProjectFileName, "Project is not restored. Run 'dotnet restore' first."))
-        | None when loaded.IsEmpty -> Error(ProjectLoadFailed(fullPath, "No F# projects found."))
+        | None when loaded.IsEmpty -> Error(ProjectLoadFailed(fullPath, "No F# or C# projects found."))
         | None ->
-            let projects = FCS.mapManyOptions loaded |> Seq.toList
+            let fsharp = loaded |> List.filter (fun p -> p.ProjectFileName.EndsWith ".fsproj")
+            let projects = FCS.mapManyOptions fsharp |> Seq.toList
 
             Ok
                 { Projects = projects
+                  CSharpProjects =
+                    loaded |> List.filter (fun p -> p.ProjectFileName.EndsWith ".csproj") |> List.map (fun p -> p.ProjectFileName)
+                  Properties = globalProperties
                   Checker = FSharpChecker.Create(projectCacheSize = max 1 projects.Length) }
 
-let check (solution: LoadedSolution) : Result<FSharpCheckProjectResults list, AnalysisError> =
+type CheckedSolution =
+    { FSharp: FSharpCheckProjectResults list
+      CSharp: Compilation list }
+
+let private checkCSharp (solution: LoadedSolution) : Result<Compilation list, AnalysisError> =
+    if solution.CSharpProjects.IsEmpty then
+        Ok []
+    else
+        // Disposing the workspace stops its build host; the compilations stay usable.
+        use workspace = MSBuildWorkspace.Create(dict solution.Properties)
+
+        let describe (diagnostic: Diagnostic) =
+            let span = diagnostic.Location.GetLineSpan()
+            let position = span.StartLinePosition
+            $"{Path.GetFileName span.Path}({position.Line + 1},{position.Character}): {diagnostic.Id}: {diagnostic.GetMessage()}"
+
+        // Opening a project also opens the projects it references, so reuse those.
+        let openProject (path: string) =
+            match
+                workspace.CurrentSolution.Projects
+                |> Seq.tryFind (fun p -> String.Equals(p.FilePath, path, StringComparison.OrdinalIgnoreCase))
+            with
+            | Some project -> project
+            | None -> workspace.OpenProjectAsync(path).Result
+
+        let rec compileAll compilations remaining =
+            match remaining with
+            | [] -> Ok(List.rev compilations)
+            | (path: string) :: rest ->
+                match (try Ok(openProject path) with e -> Error(e.GetBaseException().Message)) with
+                | Error message -> Error(ProjectLoadFailed(path, message))
+                | Ok project ->
+                    let compilation = project.GetCompilationAsync().Result
+
+                    match compilation.GetDiagnostics() |> Seq.filter (fun d -> d.Severity = DiagnosticSeverity.Error) |> Seq.toList with
+                    | [] -> compileAll (compilation :: compilations) rest
+                    | errors -> Error(CompilationFailed(project.Name, errors |> List.map describe))
+
+        compileAll [] solution.CSharpProjects
+
+let private checkFSharp (solution: LoadedSolution) : Result<FSharpCheckProjectResults list, AnalysisError> =
     let describe (diagnostic: FSharpDiagnostic) =
         let range = diagnostic.Range
         let file = Path.GetFileName range.FileName
@@ -104,3 +157,8 @@ let check (solution: LoadedSolution) : Result<FSharpCheckProjectResults list, An
                 Error(CompilationFailed(name, errors |> Array.map describe |> Array.toList))
 
     checkAll [] solution.Projects
+
+/// Type-checks the F# projects with FCS and compiles the C# projects with Roslyn, failing on the first errors.
+let check (solution: LoadedSolution) : Result<CheckedSolution, AnalysisError> =
+    checkFSharp solution
+    |> Result.bind (fun fsharp -> checkCSharp solution |> Result.map (fun csharp -> { FSharp = fsharp; CSharp = csharp }))

@@ -8,6 +8,11 @@
     <PackageVersion Include="FSharp.Compiler.Service" Version="43.12.201" />
     <PackageVersion Include="Ionide.ProjInfo" Version="0.75.3" />
     <PackageVersion Include="Ionide.ProjInfo.FCS" Version="0.75.3" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.9.0" />
+    <!-- Referenced with ExcludeAssets="runtime" wherever Roslyn is used: Roslyn's packaged copy shadows
+         the SDK's MSBuild that Ionide loads, and Ionide then fails with a TypeLoadException. -->
+    <PackageVersion Include="Microsoft.Build.Framework" Version="18.0.2" />
     <PackageVersion Include="Argu" Version="6.2.5" />
     <PackageVersion Include="Expecto" Version="11.1.1" />
   </ItemGroup>
