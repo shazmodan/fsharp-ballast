@@ -29,13 +29,15 @@ fsharp-ballast MySolution.sln --level project --max-distance 0.7
 ```
 
 ```
-Component                 Nc  Na  Ca  Ce      A      I      D   Data  Zone
-Layered::Fixture.Domain    2   0   1   0  0.000  0.000  1.000  0.500  pain
-Layered::Fixture.App       2   0   0   2  0.000  1.000  0.000  0.000
-Layered::Fixture.Ports     2   2   2   0  1.000  0.000  0.000  0.000
+Component                   Nc  Na  Ca  Ce      A      I      D      E   Data  Zone
+EffectZones::Fixture.Pure    2   0   1   0  0.000  0.000  1.000  0.000  0.500
+EffectZones::Fixture.Store   2   0   1   0  0.000  0.000  1.000  1.000  0.000  pain
+EffectZones::Fixture.App     1   0   0   1  0.000  1.000  0.000  1.000  0.000
 
-3 components, mean distance 0.333, 0 isolated
+3 components, mean distance 0.667, 0 isolated
 ```
+
+`Pure` and `Store` are both stable and concrete, but only `Store` has side effects, so only `Store` is in the Zone of Pain.
 
 ## What the numbers mean
 
@@ -50,18 +52,31 @@ For each component:
 | A | Abstractness, `Na / Nc`. 0 is fully concrete, 1 fully abstract |
 | I | Instability, `Ce / (Ca + Ce)`. 0 is maximally stable, 1 maximally unstable |
 | D | Distance from the main sequence, `abs(A + I - 1)`. 0 is ideal |
+| E | Effectfulness: share of counted declarations that are concrete and have side effects (see below) |
 | Data | Share of counted declarations that are concrete records, unions or enums |
-| Zone | `pain` or `uselessness` when D is beyond the distance threshold |
+| Zone | `pain` or `uselessness` when D is beyond the distance threshold, as described below |
 
 A component is either stable and abstract, so others can depend on it safely, or unstable and concrete, so it is easy to change. The **Zone of Pain** holds concrete components that many others depend on, which are hard to change. The **Zone of Uselessness** holds abstract components nothing depends on.
 
-A stable component full of immutable records often lands in the Zone of Pain without being a real problem, since changing data shapes is its only risk. The Data column shows when that is the case.
+In functional code, stable and concrete is only risky when it comes with side effects. A stable module of pure functions or immutable records behaves like `String`: it rarely needs to change. So under the default `functional` profile, a component is only in the Zone of Pain when its E is also beyond the effect threshold, 0.25 by default. Under `--profile classic`, effects are ignored and the zones follow Martin's original definition.
 
 A value is shown as `-` when it is undefined. Instability needs at least one dependency in or out, and abstractness needs at least one counted declaration. Undefined distances are left out of the mean.
 
 ### What counts as abstract
 
-With the default `functional` profile, these count as abstract: interfaces, abstract classes, type abbreviations of function types such as `type Clock = unit -> DateTime`, records whose fields are all functions, and delegates. With `--profile classic`, only interfaces and abstract classes do, which matches object-oriented tools.
+With the default `functional` profile, these count as abstract: interfaces, abstract classes, type abbreviations of function types such as `type Clock = unit -> DateTime`, records whose fields are all functions, delegates, and free-monad instruction unions such as `ReadUser of UserId * (User -> 'next)`. With `--profile classic`, only interfaces and abstract classes do, which matches object-oriented tools.
+
+### What counts as effectful
+
+F# and C# don't track side effects, so the tool looks for signals in each concrete declaration's own members:
+
+- a function or method that returns `unit` or `void`
+- a function or method that returns `Async`, `Task` or `ValueTask`
+- an F# module function that takes `()`, such as `let now () = ...`
+- mutable state: `let mutable`, `mutable` record fields, `ref` cells, settable properties and non-readonly fields
+- a use of an effectful framework API: `System.IO` (except `Path`), `System.Net`, data access, `Console`, `Random`, `Environment`, `Thread`, `Stopwatch`, `Process`, `DateTime.Now`, `Guid.NewGuid`, or F#'s `printf` family
+
+One signal is enough to make a declaration effectful. Interfaces and other abstractions are never effectful, because hiding an effect behind one is exactly the point. Effects are not inherited: calling an effectful module does not make the caller effectful.
 
 ### What counts as a dependency
 
@@ -85,6 +100,8 @@ Dependencies on the .NET libraries and FSharp.Core never count. Dependencies on 
 | `--no-restore` | Do not run `dotnet restore` first |
 | `--distance-threshold <0..1>` | Distance beyond which a component gets a zone. Default: `0.5` |
 | `--max-distance <0..1>` | Exit with code 1 if any component's distance exceeds this |
+| `--effect-threshold <0..1>` | Under the `functional` profile, effectfulness beyond which a stable concrete component is in the Zone of Pain. Default: `0.25` |
+| `--fail-on-zone pain\|uselessness` | Exit with code 1 if any component is in this zone. Repeatable |
 
 Test projects are recognised by the MSBuild `IsTestProject` property, which `Microsoft.NET.Test.Sdk` sets. A test project without it is analysed unless you exclude it. `--exclude` only hides components from the report: their dependencies still count in other components' numbers.
 
@@ -93,13 +110,13 @@ The HTML report is a single self-contained page with a plot of every component a
 ## Use in CI
 
 ```
-fsharp-ballast MySolution.sln --max-distance 0.7 --format html --output metrics.html
+fsharp-ballast MySolution.sln --fail-on-zone pain --format html --output metrics.html
 ```
 
 | Exit code | Meaning |
 | --- | --- |
 | 0 | Success |
-| 1 | A component's distance exceeds `--max-distance`. The report is still written, and the components are listed on standard error |
+| 1 | A component's distance exceeds `--max-distance`, or a component is in a zone named by `--fail-on-zone`. The report is still written, and the components are listed on standard error |
 | 2 | Invalid arguments, or the analysis failed: a project could not be loaded or has compile errors |
 
 ## Limitations
@@ -108,3 +125,5 @@ fsharp-ballast MySolution.sln --max-distance 0.7 --format html --output metrics.
 - Dependencies created only through reflection are not seen.
 - Signature files (`.fsi`) are not analysed separately and do not count as abstraction.
 - A type that is never named or bound, such as the type of an intermediate expression, does not create a dependency.
+- Effects are found by heuristics, so some pure code is called effectful, such as a pure `let empty () = ...` factory, and some effectful code is missed, such as a call to an effectful library the tool doesn't know. An effect passed in as a function parameter is invisible by design.
+- Effects inside lambdas and local functions count toward the declaration that contains them.

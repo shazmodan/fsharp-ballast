@@ -157,7 +157,7 @@ let private script =
     tip.replaceChildren();
     const value = document.createElement('div');
     value.className = 'tooltip-value';
-    value.textContent = 'A ' + target.dataset.a + ' · I ' + target.dataset.i + ' · D ' + target.dataset.d;
+    value.textContent = 'A ' + target.dataset.a + ' · I ' + target.dataset.i + ' · D ' + target.dataset.d + ' · E ' + target.dataset.e;
     tip.append(value);
     for (const name of target.dataset.names.split('\n')) {
       const row = document.createElement('div');
@@ -249,7 +249,7 @@ let private plot (report: Report) =
         add $"""<circle class="dot" cx="{svgNumber cx}" cy="{svgNumber cy}" r="5" />"""
 
         add
-            $"""<circle class="hit" cx="{svgNumber cx}" cy="{svgNumber cy}" r="12" tabindex="0" aria-label="{encode description}" data-names="{encode names}" data-a="{formatNumber (Some a)}" data-i="{formatNumber (Some i)}" data-d="{formatNumber first.D}" />"""
+            $"""<circle class="hit" cx="{svgNumber cx}" cy="{svgNumber cy}" r="12" tabindex="0" aria-label="{encode description}" data-names="{encode names}" data-a="{formatNumber (Some a)}" data-i="{formatNumber (Some i)}" data-d="{formatNumber first.D}" data-e="{formatNumber first.E}" />"""
 
         if labelled.Contains(a, i) then
             let text =
@@ -275,13 +275,13 @@ let private metricsTable (report: Report) =
 
         body.Append(
             $"<tr><td>{encode row.Name}</td><td>{row.Nc}</td><td>{row.Na}</td><td>{row.Ca}</td><td>{row.Ce}</td>"
-            + $"<td>{formatNumber row.A}</td><td>{formatNumber row.I}</td><td>{formatNumber row.D}</td>"
+            + $"<td>{formatNumber row.A}</td><td>{formatNumber row.I}</td><td>{formatNumber row.D}</td><td>{formatNumber row.E}</td>"
             + $"<td>{formatNumber row.DataShare}</td><td>{zone}</td></tr>\n"
         )
         |> ignore
 
     "<div class=\"table-wrap\"><table>\n"
-    + "<thead><tr><th>Component</th><th>Nc</th><th>Na</th><th>Ca</th><th>Ce</th><th>A</th><th>I</th><th>D</th><th>Data</th><th>Zone</th></tr></thead>\n"
+    + "<thead><tr><th>Component</th><th>Nc</th><th>Na</th><th>Ca</th><th>Ce</th><th>A</th><th>I</th><th>D</th><th>E</th><th>Data</th><th>Zone</th></tr></thead>\n"
     + $"<tbody>\n{body}</tbody>\n</table></div>"
 
 let html (report: Report) : string =

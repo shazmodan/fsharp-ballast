@@ -218,10 +218,70 @@ let tests =
             let linesOf (run: Run) = run.Output.Split('\n') |> Array.map (fun l -> l.TrimEnd '\r') |> Array.filter ((<>) "")
 
             let layeredLines = linesOf layered
-            Expect.equal layeredLines[0] "name,nc,na,ca,ce,a,i,d,dataShare,zone" "header"
-            Expect.contains layeredLines "Layered::Fixture.Domain,2,0,1,0,0.000,0.000,1.000,0.500,pain" "a full row"
-            Expect.contains (linesOf isolated) "Isolated::Fixture.Isolated.Alone,1,0,0,0,0.000,,,0.000," "undefined values"
+            Expect.equal layeredLines[0] "name,nc,na,ca,ce,a,i,d,e,dataShare,zone" "header"
+            Expect.contains layeredLines "Layered::Fixture.Domain,2,0,1,0,0.000,0.000,1.000,0.000,0.500,pain" "a full row"
+            Expect.contains (linesOf isolated) "Isolated::Fixture.Isolated.Alone,1,0,0,0,0.000,,,0.000,0.000," "undefined values"
         }
+
+        testList "effectfulness" [
+            let effectZones args = runOnFixture "EffectZones" "EffectZones.fsproj" ("--format" :: "json" :: args)
+
+            let expectEffect (components: Map<string, JsonElement>) name effect =
+                Expect.equal (number components[name] "e") effect $"{name}: e"
+
+            test "the EffectZones example matches its hand-calculated table" {
+                let run = effectZones []
+
+                Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
+                let components = componentsOf run.Output
+                expectRow components "EffectZones::Fixture.Pure" (2, 0, 1, 0, Some 0.0, Some 0.0, Some 1.0, None)
+                expectRow components "EffectZones::Fixture.Store" (2, 0, 1, 0, Some 0.0, Some 0.0, Some 1.0, Some "pain")
+                // Ce counts declarations, and Main is App's only one, though it uses two components.
+                expectRow components "EffectZones::Fixture.App" (1, 0, 0, 1, Some 0.0, Some 1.0, Some 0.0, None)
+                expectEffect components "EffectZones::Fixture.Pure" (Some 0.0)
+                expectEffect components "EffectZones::Fixture.Store" (Some 1.0)
+                expectEffect components "EffectZones::Fixture.App" (Some 1.0)
+            }
+
+            test "the classic profile ignores effectfulness" {
+                let components = componentsOf (effectZones [ "--profile"; "classic" ]).Output
+                Expect.equal (text components["EffectZones::Fixture.Pure"] "zone") (Some "pain") "pure is in pain too"
+            }
+
+            test "--effect-threshold moves the line" {
+                let components = componentsOf (effectZones [ "--effect-threshold"; "1" ]).Output
+                Expect.equal (text components["EffectZones::Fixture.Store"] "zone") None "E = 1 is not beyond 1"
+            }
+
+            test "--effect-threshold rejects a value outside 0 to 1" {
+                let run = runCli [ "Some.fsproj"; "--effect-threshold"; "2" ]
+                Expect.equal run.ExitCode 2 "exit code"
+                Expect.stringContains run.Errors "--effect-threshold" "names the option"
+            }
+
+            test "--fail-on-zone pain exits with code 1 and names the components" {
+                let run = effectZones [ "--fail-on-zone"; "pain" ]
+
+                Expect.equal run.ExitCode 1 "exit code"
+                Expect.stringContains run.Errors "EffectZones::Fixture.Store" "names the component"
+                Expect.isFalse (run.Errors.Contains "Fixture.Pure") "the pure component is not named"
+                Expect.isNonEmpty (componentsOf run.Output) "still writes the report"
+            }
+
+            test "--fail-on-zone succeeds when no component is in that zone" {
+                let run = effectZones [ "--fail-on-zone"; "uselessness" ]
+                Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
+            }
+
+            test "the table and HTML report show E" {
+                let table = runOnFixture "EffectZones" "EffectZones.fsproj" []
+                let html = runOnFixture "EffectZones" "EffectZones.fsproj" [ "--format"; "html" ]
+
+                Expect.stringContains (table.Output.Split('\n')[0]) "  E  " "table header"
+                Expect.stringContains html.Output "<th>E</th>" "HTML table header"
+                Expect.stringContains html.Output "data-e=" "HTML tooltip"
+            }
+        ]
 
         test "HTML is one self-contained page with the plot and the table" {
             let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "html" ]

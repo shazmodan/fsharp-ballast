@@ -22,7 +22,7 @@ let formatNumber (value: float option) =
     | Some value -> (rounded value).ToString("0.000", Globalization.CultureInfo.InvariantCulture)
     | None -> "-"
 
-let private zoneName zone =
+let zoneName zone =
     match zone with
     | Pain -> "pain"
     | Uselessness -> "uselessness"
@@ -32,7 +32,7 @@ let private summaryLine (summary: Metrics.Summary) =
     $"{summary.Components} {noun}, mean distance {formatNumber summary.MeanDistance}, {summary.Isolated} isolated"
 
 let table (report: Report) : string =
-    let header = [ "Component"; "Nc"; "Na"; "Ca"; "Ce"; "A"; "I"; "D"; "Data"; "Zone" ]
+    let header = [ "Component"; "Nc"; "Na"; "Ca"; "Ce"; "A"; "I"; "D"; "E"; "Data"; "Zone" ]
 
     let rows =
         report.Components
@@ -45,6 +45,7 @@ let table (report: Report) : string =
               formatNumber row.A
               formatNumber row.I
               formatNumber row.D
+              formatNumber row.E
               formatNumber row.DataShare
               row.Zone |> Option.map zoneName |> Option.defaultValue "" ])
 
@@ -80,7 +81,7 @@ let csv (report: Report) : string =
         | None -> ""
 
     let lines =
-        [ "name,nc,na,ca,ce,a,i,d,dataShare,zone"
+        [ "name,nc,na,ca,ce,a,i,d,e,dataShare,zone"
           for row in report.Components do
               [ quoted row.Name
                 string row.Nc
@@ -90,6 +91,7 @@ let csv (report: Report) : string =
                 number row.A
                 number row.I
                 number row.D
+                number row.E
                 number row.DataShare
                 row.Zone |> Option.map zoneName |> Option.defaultValue "" ]
               |> String.concat "," ]
@@ -124,6 +126,7 @@ let json (report: Report) : string =
         optionalNumber "a" row.A
         optionalNumber "i" row.I
         optionalNumber "d" row.D
+        optionalNumber "e" row.E
         optionalNumber "dataShare" row.DataShare
 
         match row.Zone with

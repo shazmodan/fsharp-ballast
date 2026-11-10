@@ -17,6 +17,11 @@ type ProfileOption =
     | Functional
     | Classic
 
+[<RequireQualifiedAccess>]
+type ZoneOption =
+    | Pain
+    | Uselessness
+
 type Arguments =
     | [<MainCommand; ExactlyOnce>] Path of path: string
     | Level of level: LevelOption
@@ -31,6 +36,8 @@ type Arguments =
     | No_Restore
     | Distance_Threshold of threshold: float
     | Max_Distance of distance: float
+    | Effect_Threshold of threshold: float
+    | Fail_On_Zone of zone: ZoneOption
 
     interface IArgParserTemplate with
         member this.Usage =
@@ -48,3 +55,6 @@ type Arguments =
             | No_Restore -> "do not run dotnet restore first."
             | Distance_Threshold _ -> "distance beyond which a component is given a zone, 0 to 1 (default: 0.5)."
             | Max_Distance _ -> "exit with code 1 if any component's distance exceeds this, 0 to 1."
+            | Effect_Threshold _ ->
+                "under the functional profile, effectfulness beyond which a stable concrete component is in the Zone of Pain, 0 to 1 (default: 0.25)."
+            | Fail_On_Zone _ -> "exit with code 1 if any component is in this zone: pain or uselessness. Repeatable."

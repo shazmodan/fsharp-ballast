@@ -51,9 +51,20 @@ let private execute (arguments: ParseResults<Arguments>) (stdout: TextWriter) (s
     let profile, profileName = profileOf (arguments.GetResult(Profile, defaultValue = Functional))
     let threshold = arguments.GetResult(Distance_Threshold, defaultValue = 0.5)
     let maxDistance = arguments.TryGetResult Max_Distance
+    let effectThreshold = arguments.GetResult(Effect_Threshold, defaultValue = 0.25)
+
+    let failZones =
+        arguments.GetResults Fail_On_Zone
+        |> List.map (fun zone ->
+            match zone with
+            | ZoneOption.Pain -> Pain
+            | ZoneOption.Uselessness -> Uselessness)
+        |> List.distinct
 
     let outOfRange =
-        [ "--distance-threshold", Some threshold; "--max-distance", maxDistance ]
+        [ "--distance-threshold", Some threshold
+          "--max-distance", maxDistance
+          "--effect-threshold", Some effectThreshold ]
         |> List.tryPick (fun (name, value) ->
             match value with
             | Some value when value < 0.0 || value > 1.0 -> Some name
@@ -75,7 +86,7 @@ let private execute (arguments: ParseResults<Arguments>) (stdout: TextWriter) (s
                 { Level = level
                   Profile = profile
                   DistanceThreshold = threshold
-                  EffectThreshold = 0.25 } }
+                  EffectThreshold = effectThreshold } }
 
         match Pipeline.analyse options path with
         | Error error ->
@@ -108,18 +119,25 @@ let private execute (arguments: ParseResults<Arguments>) (stdout: TextWriter) (s
                 | Some limit -> report.Components |> List.filter (fun row -> row.D |> Option.exists (fun d -> d > limit))
                 | None -> []
 
-            if beyond.IsEmpty then
-                0
-            else
+            if not beyond.IsEmpty then
                 stderr.WriteLine $"Components beyond --max-distance {maxDistance.Value}:"
 
                 for row in beyond do
                     stderr.WriteLine $"  {row.Name} (D = {Reports.formatNumber row.D})"
 
-                1
+            let zoned =
+                report.Components |> List.filter (fun row -> row.Zone |> Option.exists (fun z -> List.contains z failZones))
 
-/// Runs the tool and returns the exit code: 0 success, 1 --max-distance exceeded,
-/// 2 bad arguments or analysis failed.
+            if not zoned.IsEmpty then
+                stderr.WriteLine "Components in a zone named by --fail-on-zone:"
+
+                for row in zoned do
+                    stderr.WriteLine $"  {row.Name} ({Reports.zoneName row.Zone.Value})"
+
+            if beyond.IsEmpty && zoned.IsEmpty then 0 else 1
+
+/// Runs the tool and returns the exit code: 0 success, 1 --max-distance exceeded or a component in a
+/// --fail-on-zone zone, 2 bad arguments or analysis failed.
 let run (argv: string[]) (stdout: TextWriter) (stderr: TextWriter) : int =
     let parser = ArgumentParser.Create<Arguments>(programName = "fsharp-ballast")
 
