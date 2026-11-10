@@ -3,6 +3,7 @@ module Ballast.Analysis.CSharpExtractor
 open System
 open System.Collections.Generic
 open Microsoft.CodeAnalysis
+open Microsoft.CodeAnalysis.CSharp
 open Microsoft.CodeAnalysis.CSharp.Syntax
 open Ballast.Core
 
@@ -147,6 +148,48 @@ let private declaredTypes (model: SemanticModel) (node: SyntaxNode) : INamedType
         | _ -> []
     | _ -> []
 
+let rec private deconstructionMethods (info: DeconstructionInfo) : ISymbol list =
+    [ if not (isNull info.Method) then
+          info.Method :> ISymbol
+
+      for nested in info.Nested do
+          yield! deconstructionMethods nested ]
+
+let private isDeconstruction (assignment: AssignmentExpressionSyntax) =
+    assignment.Left :? DeclarationExpressionSyntax || assignment.Left :? TupleExpressionSyntax
+
+/// Members the compiler calls without the source naming them. Operators need nothing here,
+/// because symbol information for an operator expression is already the operator method.
+let private implicitTargets (model: SemanticModel) (node: SyntaxNode) : INamedTypeSymbol list =
+    let members: ISymbol list =
+        match node with
+        | :? CommonForEachStatementSyntax as loop ->
+            let info = model.GetForEachStatementInfo loop
+
+            [ info.GetEnumeratorMethod :> ISymbol
+              info.MoveNextMethod
+              info.CurrentProperty
+              info.DisposeMethod ]
+            @ (match loop with
+               | :? ForEachVariableStatementSyntax as deconstructing -> deconstructionMethods (model.GetDeconstructionInfo deconstructing)
+               | _ -> [])
+        | :? AwaitExpressionSyntax as awaited ->
+            let info = model.GetAwaitExpressionInfo awaited
+            [ info.GetAwaiterMethod; info.GetResultMethod; info.IsCompletedProperty ]
+        | :? AssignmentExpressionSyntax as assignment when isDeconstruction assignment ->
+            deconstructionMethods (model.GetDeconstructionInfo assignment)
+        | :? ExpressionSyntax as expression ->
+            let conversion = model.GetConversion expression
+
+            [ if conversion.IsUserDefined then
+                  conversion.MethodSymbol :> ISymbol
+              if expression.Parent :? InitializerExpressionSyntax
+                 && expression.Parent.IsKind SyntaxKind.CollectionInitializerExpression then
+                  model.GetCollectionInitializerSymbolInfo(expression).Symbol ]
+        | _ -> []
+
+    members |> List.filter (isNull >> not) |> List.collect targetsOfSymbol
+
 let private extractCompilation (compilation: Compilation) =
     let project = compilation.AssemblyName
     // Keyed by declaration key, so the parts of a partial type count once.
@@ -195,7 +238,9 @@ let private extractCompilation (compilation: Compilation) =
                     let symbol = model.GetSymbolInfo(node).Symbol
 
                     let targets =
-                        (if isNull symbol then [] else targetsOfSymbol symbol) @ declaredTypes model node
+                        (if isNull symbol then [] else targetsOfSymbol symbol)
+                        @ declaredTypes model node
+                        @ implicitTargets model node
 
                     for target in targets |> List.filter (isFramework compilation >> not) do
                         edges.Add { From = keyOf source; To = keyOf target }

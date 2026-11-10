@@ -143,6 +143,23 @@ let tests =
                 }
         ]
 
+        testList "implicit calls create dependencies" [
+            let implicitCalls = lazy (extractFixture "CSharpImplicit" "CSharpImplicit.csproj")
+
+            for scenario, source, target in
+                [ "a user-defined implicit conversion", "UsesImplicitConversion", "Money"
+                  "a binary operator", "UsesBinaryOperator", "Money"
+                  "a unary operator", "UsesUnaryOperator", "Money"
+                  "foreach's GetEnumerator", "UsesForeach", "Bag"
+                  "foreach's enumerator", "UsesForeach", "BagEnumerator"
+                  "await's awaiter", "UsesAwait", "JobAwaiter"
+                  "a collection initializer's Add", "UsesCollectionAdd", "BasketExtensions"
+                  "deconstruction's Deconstruct", "UsesDeconstruct", "Pair" ] do
+                test scenario {
+                    Expect.contains (targetsOf source implicitCalls.Value) target $"{source} depends on {target}"
+                }
+        ]
+
         test "generated code declares nothing" {
             let names = dependencies.Value.Declarations |> List.map (fun d -> d.Key.Name)
             Expect.isFalse (names |> List.contains "GeneratedThing") "generated file"
