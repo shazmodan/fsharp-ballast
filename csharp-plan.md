@@ -100,7 +100,7 @@ Build each one test-first at seams agreed before the tests, as before.
 
 **9. Spike. Done 2026-11-10.** A throwaway program checked every assumption in section 8 against small C# and F# fixtures and a generated 20-project C# solution. Results are in section 8, and this plan has been updated to match.
 
-**10. Language-neutral pipeline.** Move classification into the F# extraction so that it returns `Declaration` values, and move analysed-set filtering into a merge step. No behaviour change. Acceptance: all 129 existing tests pass unchanged, apart from test code that builds its inputs.
+**10. Language-neutral pipeline. Done 2026-11-10.** `SymbolExtractor.extract` returns a `Ballast.Core.Extraction` of classified `Declaration` values and every non-framework edge, NuGet included. `Classifier.classify` now takes an `FSharpEntity`. The new pure `Extraction.merge` in `Ballast.Core` unites extractions and drops self-edges, duplicates, and edges whose target is undeclared, keeping external-package targets only with `--include-external`. It has 4 tests on hand-built inputs. All 129 earlier tests pass, with only their input-building helpers changed.
 
 **11. C# loading and checking.** The loader sends `.csproj` files to Roslyn through `MSBuildWorkspace`, and C# compile errors become `CompilationFailed` with file, line and error id. Acceptance: fixtures for a C# project, a C#-only `.slnx`, a C# type error and a C# project that cannot load.
 

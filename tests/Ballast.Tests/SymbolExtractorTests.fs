@@ -7,14 +7,15 @@ open Ballast.Analysis.ProjectLoader
 open Ballast.Analysis.SymbolExtractor
 open Ballast.Tests.Fixtures
 
-let private internalOnly = { IncludeExternal = false }
+let private internalOnly = false
 
-let private extractFixture name relativePath options =
+/// Extracts a fixture and merges it alone, as the pipeline does for a single-language solution.
+let private extractFixture name relativePath includeExternal =
     withFixture name (fun directory ->
         let path = Path.Combine(directory, relativePath)
         let solution = Expect.wantOk (load defaultLoadOptions path) "load"
         let results = Expect.wantOk (check solution) "check"
-        extract options solution results)
+        Extraction.merge includeExternal [ extract solution results ])
 
 let private dependencies =
     lazy (extractFixture "Dependencies" "Dependencies.fsproj" internalOnly)
@@ -125,7 +126,7 @@ let tests =
             }
 
             test "are included on request, without the framework" {
-                let extraction = extractFixture "External" "External.fsproj" { IncludeExternal = true }
+                let extraction = extractFixture "External" "External.fsproj" true
                 let targets = extraction.Edges |> List.map (fun e -> e.To.Assembly) |> List.distinct
                 Expect.equal targets [ "Expecto" ] "only the NuGet package"
             }

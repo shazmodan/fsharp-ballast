@@ -9,19 +9,6 @@ open FSharp.Compiler.Text
 open Ballast.Core
 open Ballast.Analysis.ProjectLoader
 
-type ExtractOptions = { IncludeExternal: bool }
-
-type LocatedDeclaration =
-    { Key: DeclarationKey
-      Project: string
-      NamespacePath: string
-      ModulePath: string option
-      Entity: FSharpEntity }
-
-type Extraction =
-    { Declarations: LocatedDeclaration list
-      Edges: Edge list }
-
 let private isAnalysedFile (path: string) =
     let inGeneratedFolder =
         path.Split([| '\\'; '/' |]) |> Array.exists (fun part -> part.Equals("obj", StringComparison.OrdinalIgnoreCase))
@@ -78,12 +65,16 @@ let rec private modulePathOf (entity: FSharpEntity) =
     else
         entity.DeclaringEntity |> Option.bind modulePathOf
 
-let private locate project (entity: FSharpEntity) =
+let private declare project (entity: FSharpEntity) : Declaration =
+    let fsharp, classic, isData = Classifier.classify entity
+
     { Key = keyOf entity
       Project = project
       NamespacePath = namespaceOf entity
       ModulePath = modulePathOf entity
-      Entity = entity }
+      FSharpAbstraction = fsharp
+      ClassicAbstraction = classic
+      IsData = isData }
 
 /// The .NET reference packs and FSharp.Core, which never count as dependencies.
 let private isFramework (entity: FSharpEntity) =
@@ -133,7 +124,7 @@ let private extractProject (checker: FSharpChecker) (project: FSharpProjectOptio
 
     let projectName = Path.GetFileNameWithoutExtension project.ProjectFileName
 
-    entitiesByScope.Values |> Seq.map (locate projectName) |> Seq.toList,
+    entitiesByScope.Values |> Seq.map (declare projectName) |> Seq.toList,
     [ for symbolUse in uses do
           let index = indexes[symbolUse.Range.FileName]
 
@@ -145,20 +136,12 @@ let private extractProject (checker: FSharpChecker) (project: FSharpProjectOptio
                         To = keyOf target }
               | None -> () ]
 
-let extract
-    (options: ExtractOptions)
-    (solution: LoadedSolution)
-    (results: FSharpCheckProjectResults list)
-    : Extraction =
+/// Classified declarations and every dependency outside the framework, NuGet packages included.
+/// Extraction.merge decides which dependencies count.
+let extract (solution: LoadedSolution) (results: FSharpCheckProjectResults list) : Extraction =
     let extracted =
         List.zip solution.Projects results
         |> List.map (fun (project, projectResults) -> extractProject solution.Checker project projectResults)
 
-    let declarations = extracted |> List.collect fst
-    let analysedAssemblies = declarations |> List.map (fun declaration -> declaration.Key.Assembly) |> set
-
-    let isCounted edge =
-        edge.From <> edge.To && (options.IncludeExternal || analysedAssemblies.Contains edge.To.Assembly)
-
-    { Declarations = declarations
-      Edges = extracted |> List.collect snd |> List.filter isCounted |> List.distinct }
+    { Declarations = extracted |> List.collect fst
+      Edges = extracted |> List.collect snd |> List.distinct }

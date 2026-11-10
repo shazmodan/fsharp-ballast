@@ -2,7 +2,6 @@ module Ballast.Analysis.Classifier
 
 open FSharp.Compiler.Symbols
 open Ballast.Core
-open Ballast.Analysis.SymbolExtractor
 
 /// IsFunctionType does not look through abbreviations such as a Clock field.
 let rec private isFunction (fsharpType: FSharpType) =
@@ -32,14 +31,7 @@ let private abstractionsOf (entity: FSharpEntity) =
     else
         Concrete, Concrete
 
-let classify (declaration: LocatedDeclaration) : Declaration =
-    let entity = declaration.Entity
+/// The abstraction under the fsharp profile, under the classic profile, and whether it is a data type.
+let classify (entity: FSharpEntity) : Abstraction * Abstraction * bool =
     let fsharp, classic = abstractionsOf entity
-
-    { Key = declaration.Key
-      Project = declaration.Project
-      NamespacePath = declaration.NamespacePath
-      ModulePath = declaration.ModulePath
-      FSharpAbstraction = fsharp
-      ClassicAbstraction = classic
-      IsData = entity.IsFSharpRecord || entity.IsFSharpUnion || entity.IsEnum }
+    fsharp, classic, entity.IsFSharpRecord || entity.IsFSharpUnion || entity.IsEnum

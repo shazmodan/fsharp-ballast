@@ -16,8 +16,7 @@ let private classified =
 
             let results = Expect.wantOk (check solution) "check"
 
-            (extract { IncludeExternal = false } solution results).Declarations
-            |> List.map Classifier.classify))
+            (extract solution results).Declarations))
 
 [<Tests>]
 let tests =

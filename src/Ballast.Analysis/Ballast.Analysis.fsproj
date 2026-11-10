@@ -2,8 +2,8 @@
   <ItemGroup>
     <Compile Include="ProjectLoader.fs" />
     <Compile Include="ScopeIndex.fs" />
-    <Compile Include="SymbolExtractor.fs" />
     <Compile Include="Classifier.fs" />
+    <Compile Include="SymbolExtractor.fs" />
     <Compile Include="Pipeline.fs" />
   </ItemGroup>
   <ItemGroup>
