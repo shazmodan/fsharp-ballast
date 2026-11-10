@@ -74,7 +74,8 @@ let private declare project (entity: FSharpEntity) : Declaration =
       ModulePath = modulePathOf entity
       FunctionalAbstraction = functional
       ClassicAbstraction = classic
-      IsData = isData }
+      IsData = isData
+      EffectSignals = [] }
 
 /// The .NET reference packs and FSharp.Core, which never count as dependencies.
 let private isFramework (entity: FSharpEntity) =

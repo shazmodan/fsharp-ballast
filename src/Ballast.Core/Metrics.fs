@@ -14,7 +14,9 @@ type Profile =
 type Options =
     { Level: Level
       Profile: Profile
-      DistanceThreshold: float }
+      DistanceThreshold: float
+      /// Under the functional profile, the Zone of Pain also needs E beyond this.
+      EffectThreshold: float }
 
 type Summary =
     { Components: int
@@ -56,10 +58,21 @@ let calculate (options: Options) (declarations: Declaration list) (edges: Edge l
         let data = members |> List.filter (fun d -> d.IsData && abstraction d = Concrete) |> List.length
         let dataShare = if nc = 0 then None else Some(float data / float nc)
 
+        let effectfulCount =
+            members |> List.filter (fun d -> abstraction d = Concrete && not d.EffectSignals.IsEmpty) |> List.length
+
+        let e = if nc = 0 then None else Some(float effectfulCount / float nc)
+
+        // Under the functional profile, stable concrete code is only a problem when it is also effectful.
+        let painful =
+            match options.Profile with
+            | Profile.Classic -> true
+            | Profile.Functional -> e |> Option.exists (fun e -> e > options.EffectThreshold)
+
         let zone =
             match a, i, d with
             | Some a, Some i, Some d when d > options.DistanceThreshold ->
-                if a < 0.5 && i < 0.5 then Some Pain
+                if a < 0.5 && i < 0.5 then (if painful then Some Pain else None)
                 elif a > 0.5 && i > 0.5 then Some Uselessness
                 else None
             | _ -> None
@@ -72,6 +85,7 @@ let calculate (options: Options) (declarations: Declaration list) (edges: Edge l
           A = a
           I = i
           D = d
+          E = e
           DataShare = dataShare
           Zone = zone })
 

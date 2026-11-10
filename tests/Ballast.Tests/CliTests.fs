@@ -54,7 +54,7 @@ let tests =
     testSequencedGroup MsBuildGroup
     <| testList "Cli" [
         test "the Layered example reports its hand-calculated table as JSON" {
-            let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json" ]
+            let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json"; "--profile"; "classic" ]
 
             Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
             let components = componentsOf run.Output
@@ -119,7 +119,7 @@ let tests =
         }
 
         test "--level project measures whole projects" {
-            let run = runOnFixture "TwoProjects" "TwoProjects.slnx" [ "--format"; "json"; "--level"; "project" ]
+            let run = runOnFixture "TwoProjects" "TwoProjects.slnx" [ "--format"; "json"; "--level"; "project"; "--profile"; "classic" ]
 
             Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
             let components = componentsOf run.Output
@@ -128,7 +128,7 @@ let tests =
         }
 
         test "--level module splits modules out of their namespace" {
-            let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json"; "--level"; "module" ]
+            let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json"; "--level"; "module"; "--profile"; "classic" ]
 
             Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
             let components = componentsOf run.Output
@@ -196,7 +196,7 @@ let tests =
         }
 
         test "the default table lists components by distance, highest first, with a summary" {
-            let run = runOnFixture "Layered" "Layered.fsproj" []
+            let run = runOnFixture "Layered" "Layered.fsproj" [ "--profile"; "classic" ]
 
             Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
             let lines = run.Output.Split('\n') |> Array.map (fun line -> line.TrimEnd())
@@ -213,7 +213,7 @@ let tests =
         }
 
         test "CSV has one row per component and leaves undefined values empty" {
-            let layered = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "csv" ]
+            let layered = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "csv"; "--profile"; "classic" ]
             let isolated = runOnFixture "Isolated" "Isolated.fsproj" [ "--format"; "csv" ]
             let linesOf (run: Run) = run.Output.Split('\n') |> Array.map (fun l -> l.TrimEnd '\r') |> Array.filter ((<>) "")
 
@@ -259,7 +259,7 @@ let tests =
         }
 
         test "--exclude leaves matching components out of the report" {
-            let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json"; "--exclude"; "*.Ports"; "--exclude"; "*App" ]
+            let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json"; "--exclude"; "*.Ports"; "--exclude"; "*App"; "--profile"; "classic" ]
 
             Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
             let components = componentsOf run.Output
@@ -276,7 +276,7 @@ let tests =
 
         test "test projects are left out unless --include-tests is given" {
             let namesFor args =
-                let run = runOnFixture "WithTests" "WithTests.sln" ("--format" :: "json" :: args)
+                let run = runOnFixture "WithTests" "WithTests.sln" ("--format" :: "json" :: "--profile" :: "classic" :: args)
                 Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
                 componentsOf run.Output
 
@@ -316,7 +316,7 @@ let tests =
         }
 
         test "a C# solution reports its components" {
-            let run = runOnFixture "CSharpProjects" "CSharpProjects.slnx" [ "--format"; "json" ]
+            let run = runOnFixture "CSharpProjects" "CSharpProjects.slnx" [ "--format"; "json"; "--profile"; "classic" ]
 
             Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
             let components = componentsOf run.Output

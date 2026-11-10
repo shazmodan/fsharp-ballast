@@ -10,7 +10,8 @@ let private declaration assembly name =
       ModulePath = None
       FunctionalAbstraction = Concrete
       ClassicAbstraction = Concrete
-      IsData = false }
+      IsData = false
+      EffectSignals = [] }
 
 let private (=>) (source: Declaration) (target: DeclarationKey) = { From = source.Key; To = target }
 
@@ -47,6 +48,14 @@ let tests =
             let extraction = { Declarations = [ source ]; Edges = [ source => ghost ] }
 
             Expect.isEmpty (Extraction.merge true [ extraction ]).Edges "not a declaration, not a package"
+        }
+
+        test "keeps each declaration's effect signals" {
+            let writer = { declaration "App" "Writer" with EffectSignals = [ ReturnsUnit "Save"; MutableState "count" ] }
+
+            let merged = Extraction.merge false [ { Declarations = [ writer ]; Edges = [] } ]
+
+            Expect.equal merged.Declarations.Head.EffectSignals [ ReturnsUnit "Save"; MutableState "count" ] "signals"
         }
 
         test "removes duplicate edges and edges from a declaration to itself" {

@@ -128,7 +128,7 @@ Decided on 2026-11-10:
 
 Each one test-first at seams agreed before the tests, as before.
 
-**F1. Model and metric.** Add `EffectSignals` and `E`, and apply the zone rule from section 5. Extractors leave the list empty for now. Acceptance: pure `Metrics.calculate` tests for E, undefined E, the functional and classic zone rules and the effect-threshold boundary, plus hand-built `Extraction.merge` inputs carrying signals.
+**F1. Model and metric. Done 2026-11-10.** `Declaration.EffectSignals`, `ComponentMetrics.E` and `Metrics.Options.EffectThreshold` are in place. Under the functional profile, the Zone of Pain needs `E` beyond the threshold, fixed at 0.25 until `--effect-threshold` arrives in F5. Tested with pure `Metrics.calculate` cases for E, undefined E, both profiles' zone rules, the threshold boundary and the unchanged Zone of Uselessness, plus an `Extraction.merge` case carrying signals. Extractors still produce no signals, so until F2 and F3 the default functional profile reports no Zone of Pain. Eight CLI tests that check the classic zone now pass `--profile classic`, which gives the same numbers on their fixtures.
 
 **F2. F# effect signals.** Acceptance: an `FSharpEffects` fixture with one declaration per row of section 4.1 and per entry kind in section 4.3, plus cases that must stay pure: pure modules, pure data, a local `mutable` inside a function, an abstract port, and a record's generated members.
 

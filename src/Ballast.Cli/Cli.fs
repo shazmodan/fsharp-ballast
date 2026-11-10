@@ -74,7 +74,8 @@ let private execute (arguments: ParseResults<Arguments>) (stdout: TextWriter) (s
               Metrics =
                 { Level = level
                   Profile = profile
-                  DistanceThreshold = threshold } }
+                  DistanceThreshold = threshold
+                  EffectThreshold = 0.25 } }
 
         match Pipeline.analyse options path with
         | Error error ->

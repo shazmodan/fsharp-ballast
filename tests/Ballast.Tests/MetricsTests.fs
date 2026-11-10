@@ -7,7 +7,8 @@ open Ballast.Core.Metrics
 let options =
     { Level = Level.Namespace
       Profile = Profile.Functional
-      DistanceThreshold = 0.5 }
+      DistanceThreshold = 0.5
+      EffectThreshold = 0.25 }
 
 let declaration abstraction ns name =
     { Key = { Assembly = "App"; Path = ns; Name = name }
@@ -16,10 +17,12 @@ let declaration abstraction ns name =
       ModulePath = None
       FunctionalAbstraction = abstraction
       ClassicAbstraction = abstraction
-      IsData = false }
+      IsData = false
+      EffectSignals = [] }
 
 let concrete = declaration Concrete
 let abstractType = declaration Abstract
+let effectful (d: Declaration) = { d with EffectSignals = [ ReturnsUnit "Run" ] }
 
 let componentNamed ns (results: ComponentMetrics list) =
     results |> List.find (fun c -> c.Name = "App::" + ns)
@@ -206,7 +209,61 @@ let tests =
             Expect.equal (componentNamed "App.Domain" results).Ca 1 "namespace component"
         }
 
-        test "zones apply only beyond the distance threshold and on the correct side" {
+        test "effectfulness is the share of counted declarations that are concrete and effectful" {
+            let ns = "App.Shell"
+
+            let declarations =
+                [ effectful (concrete ns "Writer")
+                  concrete ns "Formatter"
+                  effectful (abstractType ns "Port") // abstract, so never effectful
+                  effectful (declaration NotCounted ns "Alias") ] // not counted at all
+
+            let result = calculate options declarations [] |> componentNamed ns
+
+            Expect.equal result.Nc 3 "Nc"
+            expectClose result.E 0.3333333333 "E"
+        }
+
+        test "effectfulness is undefined when nothing is counted" {
+            let result =
+                calculate options [ effectful (declaration NotCounted "App.Empty" "Alias") ] []
+                |> componentNamed "App.Empty"
+
+            Expect.isNone result.E "E"
+        }
+
+        test "under the functional profile the Zone of Pain also needs effectfulness beyond the threshold" {
+            // A stable, concrete component (A = 0, I = 0, D = 1) with 4 declarations, some effectful.
+            let stableConcrete effectfulCount =
+                let members =
+                    [ for n in 1..4 ->
+                          let d = concrete "App.Subject" $"M{n}"
+                          if n <= effectfulCount then effectful d else d ]
+
+                let caller = concrete "App.Callers" "Caller"
+                members @ [ caller ], [ caller => members.Head ]
+
+            let zoneOf profile effectfulCount =
+                let declarations, edges = stableConcrete effectfulCount
+                (calculate { options with Profile = profile } declarations edges |> componentNamed "App.Subject").Zone
+
+            Expect.isNone (zoneOf Profile.Functional 0) "pure: E = 0"
+            Expect.isNone (zoneOf Profile.Functional 1) "E = 0.25 is at the threshold, not beyond it"
+            Expect.equal (zoneOf Profile.Functional 2) (Some Pain) "E = 0.5"
+            Expect.equal (zoneOf Profile.Classic 0) (Some Pain) "classic ignores effectfulness"
+        }
+
+        test "effectfulness does not affect the Zone of Uselessness" {
+            let port = abstractType "App.Ports" "Port"
+            let outside = concrete "App.Outside" "Target"
+
+            let result =
+                calculate options [ port; outside ] [ port => outside ] |> componentNamed "App.Ports"
+
+            Expect.equal result.Zone (Some Uselessness) "A = 1, I = 1, E = 0"
+        }
+
+        test "under the classic profile zones apply only beyond the distance threshold and on the correct side" {
             // threshold, (na, nc), (ca, ce), expected zone
             [ 0.5, (0, 1), (1, 0), Some Pain // A=0, I=0, D=1
               0.5, (1, 1), (0, 1), Some Uselessness // A=1, I=1, D=1
@@ -219,7 +276,7 @@ let tests =
                 let declarations, edges = shaped abstractness coupling
 
                 let result =
-                    calculate { options with DistanceThreshold = threshold } declarations edges
+                    calculate { options with DistanceThreshold = threshold; Profile = Profile.Classic } declarations edges
                     |> componentNamed "App.Subject"
 
                 Expect.equal result.Zone expected $"threshold {threshold}, {abstractness}, {coupling}")
@@ -259,7 +316,7 @@ let tests =
         test "summary averages defined distances and counts isolated components" {
             let row =
                 { Name = "row"; Nc = 1; Na = 0; Ca = 0; Ce = 0
-                  A = Some 0.0; I = Some 0.0; D = Some 0.0
+                  A = Some 0.0; I = Some 0.0; D = Some 0.0; E = Some 0.0
                   DataShare = Some 0.0; Zone = None }
 
             let summary =

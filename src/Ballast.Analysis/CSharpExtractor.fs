@@ -102,7 +102,8 @@ let private declare project (symbol: INamedTypeSymbol) : Declaration =
       ModulePath = modulePathOf symbol
       FunctionalAbstraction = functional
       ClassicAbstraction = classic
-      IsData = symbol.IsRecord || symbol.TypeKind = TypeKind.Enum }
+      IsData = symbol.IsRecord || symbol.TypeKind = TypeKind.Enum
+      EffectSignals = [] }
 
 /// The reference packs and FSharp.Core, which never count as dependencies.
 let private isFramework (compilation: Compilation) (symbol: INamedTypeSymbol) =

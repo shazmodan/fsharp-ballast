@@ -11,6 +11,14 @@ type Abstraction =
     | Concrete
     | NotCounted
 
+/// Evidence that a concrete declaration's own code has side effects, with the member it was found in.
+type EffectSignal =
+    | ReturnsUnit of memberName: string
+    | ReturnsAsync of memberName: string
+    | TakesUnit of memberName: string
+    | MutableState of memberName: string
+    | UsesEffectfulApi of memberName: string * api: string
+
 type Declaration =
     { Key: DeclarationKey
       Project: string
@@ -19,7 +27,9 @@ type Declaration =
       FunctionalAbstraction: Abstraction
       ClassicAbstraction: Abstraction
       /// True for records, unions and enums, whatever their abstraction.
-      IsData: bool }
+      IsData: bool
+      /// Empty for pure code. Signals on a declaration that is abstract under a profile are ignored there.
+      EffectSignals: EffectSignal list }
 
 type Edge =
     { From: DeclarationKey
@@ -59,5 +69,7 @@ type ComponentMetrics =
       A: float option
       I: float option
       D: float option
+      /// Effectfulness: the share of counted declarations that are concrete and have an effect signal.
+      E: float option
       DataShare: float option
       Zone: Zone option }
