@@ -131,4 +131,48 @@ let tests =
                 Expect.equal targets [ "Expecto" ] "only the NuGet package"
             }
         ]
+
+        testList "effect signals" [
+            let effects = lazy (extractFixture "FSharpEffects" "FSharpEffects.fsproj" internalOnly)
+
+            let signalsOf name =
+                let found = effects.Value.Declarations |> List.filter (fun d -> d.Key.Name = name)
+                Expect.hasLength found 1 $"{name} is declared once"
+                found.Head.EffectSignals
+
+            let kindOf signal =
+                match signal with
+                | ReturnsUnit _ -> "ReturnsUnit"
+                | ReturnsAsync _ -> "ReturnsAsync"
+                | TakesUnit _ -> "TakesUnit"
+                | MutableState _ -> "MutableState"
+                | UsesEffectfulApi(_, api) -> $"UsesEffectfulApi {api}"
+
+            for name, expected in
+                [ "Logging", "ReturnsUnit"
+                  "Service", "ReturnsUnit"
+                  "Jobs", "ReturnsAsync"
+                  "Tasks", "ReturnsAsync"
+                  "Factories", "TakesUnit"
+                  "Counters", "MutableState"
+                  "Cells", "MutableState"
+                  "MutableRecord", "MutableState"
+                  "Settable", "MutableState"
+                  "ClassWithMutableField", "MutableState"
+                  "Files", "UsesEffectfulApi System.IO.File"
+                  "Times", "UsesEffectfulApi System.DateTime.Now"
+                  "Ids", "UsesEffectfulApi System.Guid.NewGuid"
+                  "Terminal", "UsesEffectfulApi System.Console"
+                  "Printing", "UsesEffectfulApi Microsoft.FSharp.Core.ExtraTopLevelOperators.printfn" ] do
+                test $"{name}: {expected}" {
+                    Expect.contains (signalsOf name |> List.map kindOf) expected "signal"
+                }
+
+            test "a signal names the member it came from" {
+                Expect.equal (signalsOf "Logging") [ ReturnsUnit "write" ] "Logging.write"
+            }
+
+            for name in [ "Pure"; "Data"; "Shape"; "Level"; "Money"; "Patterns"; "IPort"; "Clock" ] do
+                test $"{name} is pure" { Expect.isEmpty (signalsOf name) "no signals" }
+        ]
     ]

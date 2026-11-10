@@ -64,7 +64,7 @@ A signal is looked for in the members a declaration defines itself: functions an
 
 | Signal | Detection (FCS) | Known false positives |
 | --- | --- | --- |
-| `ReturnsUnit` | A function or method whose final return type is `unit`. A property setter counts | A pure function that returns `unit` is rare, so few |
+| `ReturnsUnit` | A function or method whose final return type is `unit`. A property setter counts as `MutableState` instead | A pure function that returns `unit` is rare, so few |
 | `ReturnsAsync` | Final return type `Async<_>`, `Task`, `Task<_>`, `ValueTask` or `ValueTask<_>` | An async function that only computes |
 | `TakesUnit` | A curried parameter group that is exactly `unit`, such as `let now () = ...` | Pure factories, such as `let empty () = { Items = [] }`. Section 7 asks whether to keep this signal |
 | `MutableState` | A `let mutable` value in a module or class, a `mutable` record field, or a field of type `ref` | A local `mutable` inside a function body is not state and does not count |
@@ -130,7 +130,7 @@ Each one test-first at seams agreed before the tests, as before.
 
 **F1. Model and metric. Done 2026-11-10.** `Declaration.EffectSignals`, `ComponentMetrics.E` and `Metrics.Options.EffectThreshold` are in place. Under the functional profile, the Zone of Pain needs `E` beyond the threshold, fixed at 0.25 until `--effect-threshold` arrives in F5. Tested with pure `Metrics.calculate` cases for E, undefined E, both profiles' zone rules, the threshold boundary and the unchanged Zone of Uselessness, plus an `Extraction.merge` case carrying signals. Extractors still produce no signals, so until F2 and F3 the default functional profile reports no Zone of Pain. Eight CLI tests that check the classic zone now pass `--profile classic`, which gives the same numbers on their fixtures.
 
-**F2. F# effect signals.** Acceptance: an `FSharpEffects` fixture with one declaration per row of section 4.1 and per entry kind in section 4.3, plus cases that must stay pure: pure modules, pure data, a local `mutable` inside a function, an abstract port, and a record's generated members.
+**F2. F# effect signals. Done 2026-11-10.** The F# extractor attaches signals to each concrete declaration. A member signal names its member. An effectful-API signal names its declaration, because uses are attributed to declarations, not members. Interfaces and abstract classes get no signals. The API list lives in `EffectfulApis.fs` for both languages, adds FSharp.Core's `printf` family and `stdin`, `stdout` and `stderr`, and treats `System.IO.Path` as pure. Tested on an `FSharpEffects` fixture: all 16 effectful cases failed before the change, and the 8 pure cases stayed pure. Original acceptance: an `FSharpEffects` fixture with one declaration per row of section 4.1 and per entry kind in section 4.3, plus cases that must stay pure: pure modules, pure data, a local `mutable` inside a function, an abstract port, and a record's generated members.
 
 **F3. C# effect signals.** Acceptance: a `CSharpEffects` fixture with one type per row of section 4.2 and per entry kind in section 4.3, plus pure cases: a static class of pure functions, a record with `init` properties, `readonly` and `const` fields, and an interface.
 

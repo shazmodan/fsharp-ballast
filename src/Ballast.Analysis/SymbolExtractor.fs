@@ -65,8 +65,80 @@ let rec private modulePathOf (entity: FSharpEntity) =
     else
         entity.DeclaringEntity |> Option.bind modulePathOf
 
-let private declare project (entity: FSharpEntity) : Declaration =
+let rec private withoutAbbreviations (fsharpType: FSharpType) =
+    if fsharpType.IsAbbreviation then
+        withoutAbbreviations fsharpType.AbbreviatedType
+    else
+        fsharpType
+
+let private definitionName (fsharpType: FSharpType) =
+    let fsharpType = withoutAbbreviations fsharpType
+
+    if fsharpType.HasTypeDefinition then
+        fsharpType.TypeDefinition.AccessPath + "." + fsharpType.TypeDefinition.CompiledName
+    else
+        ""
+
+let private asyncTypes =
+    set
+        [ "Microsoft.FSharp.Control.FSharpAsync`1"
+          "System.Threading.Tasks.Task"
+          "System.Threading.Tasks.Task`1"
+          "System.Threading.Tasks.ValueTask"
+          "System.Threading.Tasks.ValueTask`1" ]
+
+let private isUnit fsharpType = definitionName fsharpType = "Microsoft.FSharp.Core.Unit"
+
+/// Signals from the members and fields a declaration defines itself. Locals inside function bodies are not members.
+let private memberSignals (entity: FSharpEntity) =
+    [ for value in entity.MembersFunctionsAndValues do
+          if not value.IsCompilerGenerated && not value.IsConstructor then
+              let name = value.DisplayName
+
+              if value.IsPropertySetterMethod
+                 || value.IsMutable
+                 || definitionName value.FullType = "Microsoft.FSharp.Core.FSharpRef`1" then
+                  MutableState name
+              else
+                  let returned = value.ReturnParameter.Type
+
+                  if isUnit returned then
+                      ReturnsUnit name
+
+                  if asyncTypes.Contains(definitionName returned) then
+                      ReturnsAsync name
+
+                  // `let now () = ...` in a module. A parameterless method is not flagged.
+                  if not value.IsMember
+                     && value.CurriedParameterGroups |> Seq.exists (fun group -> group.Count = 1 && isUnit group[0].Type) then
+                      TakesUnit name
+
+      for field in entity.FSharpFields do
+          if field.IsMutable then
+              MutableState field.Name ]
+
+/// The effectful framework API a symbol use refers to, if any.
+let private effectfulApiOf (symbol: FSharpSymbol) =
+    try
+        match symbol with
+        | :? FSharpMemberOrFunctionOrValue as value ->
+            value.DeclaringEntity
+            |> Option.bind (fun entity -> EffectfulApis.classify entity.AccessPath entity.DisplayName (Some value.DisplayName))
+        | :? FSharpEntity as entity when not entity.IsNamespace ->
+            EffectfulApis.classify entity.AccessPath entity.DisplayName None
+        | _ -> None
+    with _ ->
+        None
+
+let private declare project (entity: FSharpEntity) (apiSignals: EffectSignal list) : Declaration =
     let functional, classic, isData = Classifier.classify entity
+
+    // Interfaces and abstract classes are ports: their effects belong to whoever implements them.
+    let signals =
+        if functional = Abstract && classic = Abstract then
+            []
+        else
+            memberSignals entity @ apiSignals |> List.distinct
 
     { Key = keyOf entity
       Project = project
@@ -75,7 +147,7 @@ let private declare project (entity: FSharpEntity) : Declaration =
       FunctionalAbstraction = functional
       ClassicAbstraction = classic
       IsData = isData
-      EffectSignals = [] }
+      EffectSignals = signals }
 
 /// The .NET reference packs and FSharp.Core, which never count as dependencies.
 let private isFramework (entity: FSharpEntity) =
@@ -125,17 +197,38 @@ let private extractProject (checker: FSharpChecker) (project: FSharpProjectOptio
 
     let projectName = Path.GetFileNameWithoutExtension project.ProjectFileName
 
-    entitiesByScope.Values |> Seq.map (declare projectName) |> Seq.toList,
-    [ for symbolUse in uses do
-          let index = indexes[symbolUse.Range.FileName]
+    // Effectful API uses are framework uses, so they are found here, before the framework filter.
+    let apiSignals = Dictionary<DeclarationKey, ResizeArray<EffectSignal>>()
 
-          if not (ScopeIndex.isInOpen index symbolUse.Range) then
-              match ScopeIndex.enclosing index symbolUse.Range |> Option.bind entityOf with
-              | Some source ->
-                  for target in targetsOf symbolUse |> List.filter (isFramework >> not) do
-                      { From = keyOf source
-                        To = keyOf target }
-              | None -> () ]
+    let edges =
+        [ for symbolUse in uses do
+              let index = indexes[symbolUse.Range.FileName]
+
+              if not (ScopeIndex.isInOpen index symbolUse.Range) then
+                  match ScopeIndex.enclosing index symbolUse.Range |> Option.bind entityOf with
+                  | Some source ->
+                      match effectfulApiOf symbolUse.Symbol with
+                      | Some api ->
+                          let key = keyOf source
+
+                          if not (apiSignals.ContainsKey key) then
+                              apiSignals[key] <- ResizeArray()
+
+                          apiSignals[key].Add(UsesEffectfulApi(source.DisplayName, api))
+                      | None -> ()
+
+                      for target in targetsOf symbolUse |> List.filter (isFramework >> not) do
+                          { From = keyOf source
+                            To = keyOf target }
+                  | None -> () ]
+
+    let apiSignalsOf entity =
+        match apiSignals.TryGetValue(keyOf entity) with
+        | true, signals -> List.ofSeq signals
+        | false, _ -> []
+
+    entitiesByScope.Values |> Seq.map (fun entity -> declare projectName entity (apiSignalsOf entity)) |> Seq.toList,
+    edges
 
 /// Classified declarations and every dependency outside the framework, NuGet packages included.
 /// Extraction.merge decides which dependencies count.

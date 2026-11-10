@@ -2,6 +2,7 @@
   <ItemGroup>
     <Compile Include="ProjectLoader.fs" />
     <Compile Include="ScopeIndex.fs" />
+    <Compile Include="EffectfulApis.fs" />
     <Compile Include="Classifier.fs" />
     <Compile Include="SymbolExtractor.fs" />
     <Compile Include="CSharpExtractor.fs" />
