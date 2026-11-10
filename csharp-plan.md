@@ -113,7 +113,7 @@ Build each one test-first at seams agreed before the tests, as before.
 
 **15. Implicit C# dependencies. Done 2026-11-10.** The C# extractor finds implicit conversions, `foreach` enumerators, `await` awaiters, collection-initialiser `Add` methods and deconstruction through Roslyn's semantic-model helpers, as section 5 now describes. It is tested on a `CSharpImplicit` fixture where each source gets its instances from a factory, so the target is reached only through the implicit call. 6 of the 8 cases failed before the change. The binary and unary operator cases already passed.
 
-**16. CLI, reports and README.** Language-neutral wording in usage and README, and C# examples. Acceptance: the C# Layered example matches its table in all four formats.
+**16. CLI, reports and README. Done 2026-11-10.** The usage text accepts `.csproj`. The package description and tags mention C#. The README covers C# input, mixed solutions, C# classification and C# dependencies, plus C# limitations: LINQ query syntax, pattern-based `Dispose`, C# referencing F#, and project names taken from assembly names. A `CSharpLayered` fixture reproduces the Layered table under `--profile classic` as JSON, table, CSV and HTML, and stays out of the Zone of Pain under `functional` because its Domain is pure. The tool keeps the name `fsharp-ballast`. The packed tool was checked end to end on the C# and mixed fixtures.
 
 **17. Real-world validation.** Run on a C# library, a C# application and a mixed solution, spot-check about 20 edges each, and record time and memory. Running other repositories' builds needs your approval, as it did for milestone 7. Acceptance: no crashes, and every wrong-looking edge is explained or fixed.
 

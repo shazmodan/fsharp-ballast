@@ -223,6 +223,49 @@ let tests =
             Expect.contains (linesOf isolated) "Isolated::Fixture.Isolated.Alone,1,0,0,0,0.000,,,0.000,0.000," "undefined values"
         }
 
+        testList "the C# Layered example" [
+            let layered args = runOnFixture "CSharpLayered" "CSharpLayered.csproj" args
+
+            test "matches its hand-calculated table as JSON" {
+                let run = layered [ "--format"; "json"; "--profile"; "classic" ]
+
+                Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
+                let components = componentsOf run.Output
+                expectRow components "CSharpLayered::Fixture.Ports" (2, 2, 2, 0, Some 1.0, Some 0.0, Some 0.0, None)
+                expectRow components "CSharpLayered::Fixture.Domain" (2, 0, 1, 0, Some 0.0, Some 0.0, Some 1.0, Some "pain")
+                expectRow components "CSharpLayered::Fixture.App" (2, 0, 0, 2, Some 0.0, Some 1.0, Some 0.0, None)
+            }
+
+            test "keeps the pure Domain out of the Zone of Pain under the functional profile" {
+                let components = componentsOf (layered [ "--format"; "json" ]).Output
+                let domain = components["CSharpLayered::Fixture.Domain"]
+                Expect.equal (number domain "e") (Some 0.0) "Domain is pure"
+                Expect.equal (text domain "zone") None "no zone"
+                Expect.equal (number components["CSharpLayered::Fixture.App"] "e") (Some 1.0) "App's void methods are effects"
+            }
+
+            test "matches it as a table and as CSV" {
+                let table = layered [ "--profile"; "classic" ]
+                let csv = layered [ "--format"; "csv"; "--profile"; "classic" ]
+
+                let domainLine = table.Output.Split('\n') |> Array.find (fun line -> line.Contains "Fixture.Domain")
+                Expect.stringContains domainLine "1.000" "D in the table"
+                Expect.stringContains domainLine "pain" "zone in the table"
+                Expect.stringContains csv.Output "CSharpLayered::Fixture.Domain,2,0,1,0,0.000,0.000,1.000,0.000,0.500,pain" "CSV row"
+            }
+
+            test "matches it as HTML" {
+                let html = (layered [ "--format"; "html"; "--profile"; "classic" ]).Output
+                Expect.stringContains html "<td>CSharpLayered::Fixture.Domain</td>" "a table row"
+                Expect.stringContains html "Zone of Pain" "the plot"
+            }
+        ]
+
+        test "--help describes C# input" {
+            let run = runCli [ "--help" ]
+            Expect.stringContains run.Output ".csproj" "usage names .csproj"
+        }
+
         testList "effectfulness" [
             let effectZones args = runOnFixture "EffectZones" "EffectZones.fsproj" ("--format" :: "json" :: args)
 

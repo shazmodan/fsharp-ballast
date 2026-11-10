@@ -5,8 +5,8 @@
     <ToolCommandName>fsharp-ballast</ToolCommandName>
     <PackageId>fsharp-ballast</PackageId>
     <Version>0.1.0</Version>
-    <Description>Measures Abstractness, Instability and Distance from the Main Sequence for F# projects and solutions.</Description>
-    <PackageTags>fsharp;metrics;architecture;coupling;static-analysis</PackageTags>
+    <Description>Measures Abstractness, Instability, Distance from the Main Sequence and effectfulness for F# and C# projects and solutions.</Description>
+    <PackageTags>fsharp;csharp;metrics;architecture;coupling;static-analysis</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- Run on newer .NET runtimes than the one the tool was built for. -->
     <RollForward>Major</RollForward>

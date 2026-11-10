@@ -42,7 +42,7 @@ type Arguments =
     interface IArgParserTemplate with
         member this.Usage =
             match this with
-            | Path _ -> "the .fsproj, .sln or .slnx file to analyse."
+            | Path _ -> "the .fsproj, .csproj, .sln or .slnx file to analyse."
             | Level _ -> "what counts as a component: project, namespace or module (default: namespace)."
             | Profile _ -> "what counts as abstract: functional or classic (default: functional)."
             | Format _ -> "report format: table, json, csv or html (default: table)."

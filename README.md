@@ -1,8 +1,8 @@
 # fsharp-ballast
 
-A command-line tool that measures Robert C. Martin's package metrics for F# code: **Abstractness**, **Instability** and **Distance from the Main Sequence**. Point it at a project or solution and it reports how each component balances stability against abstraction, and which ones sit in the Zone of Pain or the Zone of Uselessness.
+A command-line tool that measures Robert C. Martin's package metrics for F# and C# code: **Abstractness**, **Instability** and **Distance from the Main Sequence**, plus **effectfulness**. Point it at a project or solution and it reports how each component balances stability against abstraction, and which ones sit in the Zone of Pain or the Zone of Uselessness.
 
-It reads your code through the F# compiler, so it sees the declarations you wrote rather than the extra types the compiler generates.
+It reads F# through the F# compiler and C# through Roslyn, so it sees the declarations you wrote rather than the extra types the compilers generate. A solution can mix both languages.
 
 ## Install
 
@@ -66,6 +66,8 @@ A value is shown as `-` when it is undefined. Instability needs at least one dep
 
 With the default `functional` profile, these count as abstract: interfaces, abstract classes, type abbreviations of function types such as `type Clock = unit -> DateTime`, records whose fields are all functions, delegates, and free-monad instruction unions such as `ReadUser of UserId * (User -> 'next)`. With `--profile classic`, only interfaces and abstract classes do, which matches object-oriented tools.
 
+C# follows the same rules: interfaces and abstract classes, including abstract records, are abstract under both profiles, while delegates and records whose positional parameters are all delegates, such as `record Repo(Func<int, string> Load)`, are abstract only under `functional`. A static class counts like an F# module: it is a concrete declaration if it has members, and is not counted if it only holds nested types. Records and enums count as data.
+
 ### What counts as effectful
 
 F# and C# don't track side effects, so the tool looks for signals in each concrete declaration's own members:
@@ -82,7 +84,11 @@ One signal is enough to make a declaration effectful. Interfaces and other abstr
 
 A declaration depends on another when its code names it, or uses one of its members, union cases, fields or active patterns. Types that are only inferred are included too, through the signatures of named functions and values. Unused `open` declarations create no dependency.
 
+In C#, a type depends on whatever its code names or uses, including base types, attributes, `typeof`, `nameof`, extension methods and the inferred types of `var` and lambda parameters. Members the compiler calls without the code naming them count too: implicit conversions, operators, `foreach` enumerators, `await` awaiters, collection-initializer `Add` methods and `Deconstruct`. `using` directives and documentation comments create no dependency, and generated code is left out.
+
 Dependencies on the .NET libraries and FSharp.Core never count. Dependencies on NuGet packages count only with `--include-external`.
+
+In a mixed solution, an F# project that references a C# project is analysed without building anything, and dependencies across the language boundary count like any other. A C# project that references an F# project is not supported yet and stops the analysis with an error.
 
 ## Options
 
@@ -127,3 +133,6 @@ fsharp-ballast MySolution.sln --fail-on-zone pain --format html --output metrics
 - A type that is never named or bound, such as the type of an intermediate expression, does not create a dependency.
 - Effects are found by heuristics, so some pure code is called effectful, such as a pure `let empty () = ...` factory, and some effectful code is missed, such as a call to an effectful library the tool doesn't know. An effect passed in as a function parameter is invisible by design.
 - Effects inside lambdas and local functions count toward the declaration that contains them.
+- In C#, LINQ query syntax (`from … select`) and the `Dispose` call behind a pattern-based `using` create no dependency.
+- A C# project that references an F# project cannot be analysed yet.
+- A C# component's project name is its assembly name, which is normally the same as the project name.
