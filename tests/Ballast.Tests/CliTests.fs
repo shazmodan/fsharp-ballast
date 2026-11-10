@@ -300,6 +300,15 @@ let tests =
             Expect.equal (namesFor [ "--framework"; "net8.0" ]) [ core; net8Only ] "net8.0"
         }
 
+        test "a C# solution reports its components" {
+            let run = runOnFixture "CSharpProjects" "CSharpProjects.slnx" [ "--format"; "json" ]
+
+            Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
+            let components = componentsOf run.Output
+            expectRow components "App::Fixture.CSharp.App" (1, 0, 0, 1, Some 0.0, Some 1.0, Some 0.0, None)
+            expectRow components "Lib::Fixture.CSharp.Lib" (1, 0, 1, 0, Some 0.0, Some 0.0, Some 1.0, Some "pain")
+        }
+
         test "--help prints usage and succeeds" {
             let run = runCli [ "--help" ]
 
