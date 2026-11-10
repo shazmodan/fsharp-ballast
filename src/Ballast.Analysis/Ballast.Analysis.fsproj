@@ -3,6 +3,7 @@
     <Compile Include="ProjectLoader.fs" />
     <Compile Include="ScopeIndex.fs" />
     <Compile Include="SymbolExtractor.fs" />
+    <Compile Include="Classifier.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Compiler.Service" />

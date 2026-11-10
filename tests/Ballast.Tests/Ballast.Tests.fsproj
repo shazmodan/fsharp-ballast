@@ -8,6 +8,7 @@
     <Compile Include="ProjectLoaderTests.fs" />
     <Compile Include="ScopeIndexTests.fs" />
     <Compile Include="SymbolExtractorTests.fs" />
+    <Compile Include="ClassifierTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -220,7 +220,7 @@ Build each milestone test-first. Each one is done when its acceptance check pass
 
 **4. Symbol extraction. Done 2026-11-10.** `SymbolExtractor.extract` returns located declarations and de-duplicated edges, tested on real fixtures for every row of the target table in section 4, inferred return types, active patterns, extension methods, `inline` functions, SRTP, computation expressions, `.fsi` files, implicit file modules, cross-project references and `--include-external`. Scopes are linked to entities by position, because a type and module can share a name, and so can generic types of different arity. Framework assemblies are recognised as `FSharp.Core` or anything under a `packs` folder.
 
-**5. Classification.** Acceptance: one fixture declaration per row of the table in section 5, asserted under both profiles.
+**5. Classification. Done 2026-11-10.** `Classifier.classify` turns a located declaration into the `Declaration` that `Metrics.calculate` takes, tested with one fixture declaration per row of the table in section 5 under both profiles. `IsFunctionType` does not look through abbreviations, so function detection follows them first. That covers `type DeepClock = Clock` and a record field of type `Clock`.
 
 **6. CLI and reports.** Acceptance: the end-to-end fixtures in section 8 match exactly in every output format, and all three exit codes are covered.
 

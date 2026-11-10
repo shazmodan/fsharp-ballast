@@ -4,4 +4,4 @@ open Expecto
 
 [<EntryPoint>]
 let main argv =
-    runTestsWithCLIArgs [] argv (testList "Ballast" [ MetricsTests.tests; ProjectLoaderTests.tests; ScopeIndexTests.tests; SymbolExtractorTests.tests ])
+    runTestsWithCLIArgs [] argv (testList "Ballast" [ MetricsTests.tests; ProjectLoaderTests.tests; ScopeIndexTests.tests; SymbolExtractorTests.tests; ClassifierTests.tests ])
