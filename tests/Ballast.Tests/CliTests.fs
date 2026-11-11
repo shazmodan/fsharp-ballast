@@ -195,6 +195,18 @@ let tests =
                 (1, 0, 0, 1, Some 0.0, Some 1.0, Some 0.0, None)
         }
 
+        test "the table ends with recommendations unless --no-recommendations is given" {
+            let shown = runOnFixture "Layered" "Layered.fsproj" [ "--profile"; "classic" ]
+            let hidden = runOnFixture "Layered" "Layered.fsproj" [ "--profile"; "classic"; "--no-recommendations" ]
+
+            Expect.equal shown.ExitCode 0 $"exit code, errors: {shown.Errors}"
+            Expect.stringContains shown.Output "Recommendations" "shown by default"
+            Expect.stringContains shown.Output "Layered::Fixture.Domain  (A 0.000, I 0.000, D 1.000" "advice for Domain"
+            Expect.equal hidden.ExitCode 0 $"exit code, errors: {hidden.Errors}"
+            Expect.isFalse (hidden.Output.Contains "Recommendations") "hidden with the option"
+            Expect.stringContains hidden.Output "3 components, mean distance 0.333" "the table is still there"
+        }
+
         test "the default table lists components by distance, highest first, with a summary" {
             let run = runOnFixture "Layered" "Layered.fsproj" [ "--profile"; "classic" ]
 

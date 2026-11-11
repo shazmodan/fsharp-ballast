@@ -31,7 +31,95 @@ let private summaryLine (summary: Metrics.Summary) =
     let noun = if summary.Components = 1 then "component" else "components"
     $"{summary.Components} {noun}, mean distance {formatNumber summary.MeanDistance}, {summary.Isolated} isolated"
 
-let table (report: Report) : string =
+/// What the recommendations say before the per-component advice.
+let recommendationsIntro =
+    "A component is balanced when its abstractness matches its stability: what much depends on should be abstract, and what depends on much should be concrete. To move a component toward the main sequence:"
+
+/// General guidance as (heading, rest of the sentence) pairs.
+let recommendationsGuide =
+    [ "Below the line",
+      ", too concrete for how much depends on it: give dependents abstractions to use, such as interfaces or, in functional code, function types and records of functions. Or move code that changes often out of it, so that less depends on that code."
+      "Above the line",
+      ", too abstract for how little depends on it: remove abstractions nothing uses, or merge them into the component that uses them. An abstraction is only worth having when others depend on it."
+      "In functional code",
+      ", keep effects at the edges. A stable component of pure functions and immutable data is safe even when it is concrete, so moving its side effects out is often all it needs." ]
+
+/// What a component far from the main sequence can do to get closer, or None when it is close enough.
+let advice (report: Report) (row: ComponentMetrics) =
+    let functional = report.Profile = "functional"
+
+    match row.A, row.I, row.D with
+    | Some a, Some i, Some d when d > report.DistanceThreshold ->
+        match row.Zone with
+        | Some Pain when functional ->
+            Some
+                "Stable, concrete and effectful: much depends on it, and its side effects make it risky to change. Move the side effects to the edge of the program, so this component keeps the pure logic and callers pass effects in as functions or interfaces. Or put an abstraction, such as an interface, a function type or a record of functions, in front of the effectful parts and have dependents use that instead."
+        | Some Pain ->
+            Some
+                "Stable and concrete: much depends on it, so every change ripples out. Extract interfaces or abstract classes that dependents use instead of the concrete types, or split off the parts that change often so that less depends on them."
+        | Some Uselessness ->
+            Some
+                "Abstract and unstable: it declares abstractions, but little depends on them while they depend on much. Remove abstractions that nothing implements or uses, move single-use ones next to their only user, and make the rest depend on less so they become stable."
+        | None when functional && a < 0.5 && i < 0.5 ->
+            Some
+                "Stable and concrete, but mostly pure, so it is not in the Zone of Pain. Pure functions and immutable data rarely need to change, so much can safely depend on them. Keep side effects out of it."
+        | _ when a + i < 1.0 ->
+            Some
+                "More concrete than its stability calls for. Have dependents use abstractions rather than its concrete types, or move code that changes often out of it."
+        | _ ->
+            Some
+                "More abstract than its dependents justify. Remove abstractions that nothing uses, or have it depend on less so that it becomes stable."
+    | _ -> None
+
+/// Components with advice, furthest from the main sequence first.
+let recommended (report: Report) =
+    report.Components
+    |> List.choose (fun row -> advice report row |> Option.map (fun text -> row, text))
+    |> List.sortByDescending (fun (row, _) -> row.D)
+
+let thresholdText (report: Report) =
+    report.DistanceThreshold.ToString("0.##", Globalization.CultureInfo.InvariantCulture)
+
+/// The line above the advice, or the line in its place when no component needs any.
+let recommendedHeading (report: Report) (any: bool) =
+    if any then
+        $"Components further than {thresholdText report} from the main sequence, furthest first."
+    else
+        $"No component is further than {thresholdText report} from the main sequence, so no changes are suggested."
+
+/// Breaks text into lines of at most width characters, each starting with indent.
+let private wrap (indent: string) (width: int) (text: string) =
+    let words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
+
+    let rec go (lines: string list) (current: string) words =
+        match words with
+        | [] -> List.rev (current :: lines)
+        | (word: string) :: rest when current.Length = indent.Length -> go lines (current + word) rest
+        | word :: rest when current.Length + 1 + word.Length > width -> go (current :: lines) (indent + word) rest
+        | word :: rest -> go lines (current + " " + word) rest
+
+    go [] indent words
+
+/// The recommendations as plain text, the same as the HTML report's section.
+let private recommendationsText (report: Report) =
+    let width = 100
+    let items = recommended report
+
+    [ "Recommendations"
+      ""
+      yield! wrap "" width recommendationsIntro
+      ""
+      for heading, rest in recommendationsGuide do
+          yield! wrap "  " width ("- " + heading + rest) |> List.mapi (fun i line -> if i = 0 then line else "  " + line)
+      ""
+      recommendedHeading report (not items.IsEmpty)
+      for row, text in items do
+          ""
+          $"{row.Name}  (A {formatNumber row.A}, I {formatNumber row.I}, D {formatNumber row.D}, E {formatNumber row.E})"
+          yield! wrap "  " width text ]
+
+/// The metrics table, followed by the recommendations unless withRecommendations is false.
+let table (withRecommendations: bool) (report: Report) : string =
     let header = [ "Component"; "Nc"; "Na"; "Ca"; "Ce"; "A"; "I"; "D"; "E"; "Data"; "Zone" ]
 
     let rows =
@@ -64,7 +152,10 @@ let table (report: Report) : string =
         |> String.concat "  "
         |> fun line -> line.TrimEnd()
 
-    (format header :: (rows |> List.map format)) @ [ ""; summaryLine report.Summary ]
+    let recommendations =
+        if withRecommendations then "" :: recommendationsText report else []
+
+    (format header :: (rows |> List.map format)) @ [ ""; summaryLine report.Summary ] @ recommendations
     |> String.concat "\n"
     |> fun text -> text + "\n"
 

@@ -27,12 +27,12 @@ let private globPattern (glob: string) =
     let pattern = "^" + Regex.Escape(glob).Replace(@"\*", ".*").Replace(@"\?", ".") + "$"
     Regex(pattern, RegexOptions.IgnoreCase)
 
-let private render format report =
+let private render format withRecommendations report =
     match format with
-    | Table -> Reports.table report
+    | Table -> Reports.table withRecommendations report
     | Json -> Reports.json report
     | Csv -> Reports.csv report
-    | Html -> HtmlReport.html report
+    | Html -> HtmlReport.html withRecommendations report
 
 let private levelOf option =
     match option with
@@ -106,7 +106,8 @@ let private execute (arguments: ParseResults<Arguments>) (stdout: TextWriter) (s
                   Components = shown |> List.sortBy reportOrder
                   Summary = Metrics.summarize shown }
 
-            let text = render (arguments.GetResult(Format, defaultValue = Table)) report
+            let text =
+                render (arguments.GetResult(Format, defaultValue = Table)) (not (arguments.Contains No_Recommendations)) report
 
             match arguments.TryGetResult Output with
             | Some file ->

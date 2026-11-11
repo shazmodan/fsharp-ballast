@@ -38,6 +38,7 @@ type Arguments =
     | Max_Distance of distance: float
     | Effect_Threshold of threshold: float
     | Fail_On_Zone of zone: ZoneOption
+    | No_Recommendations
 
     interface IArgParserTemplate with
         member this.Usage =
@@ -58,3 +59,4 @@ type Arguments =
             | Effect_Threshold _ ->
                 "under the functional profile, effectfulness beyond which a stable concrete component is in the Zone of Pain, 0 to 1 (default: 0.25)."
             | Fail_On_Zone _ -> "exit with code 1 if any component is in this zone: pain or uselessness. Repeatable."
+            | No_Recommendations -> "leave the recommendations out of table and html reports."

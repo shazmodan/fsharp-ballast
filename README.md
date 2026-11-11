@@ -47,6 +47,8 @@ EffectZones::Fixture.App     1   0   0   1  0.000  1.000  0.000  1.000  0.000
 
 `Pure` and `Store` are both stable and concrete, but only `Store` has side effects, so only `Store` is in the Zone of Pain.
 
+After the summary, the table lists recommendations: general guidance on moving toward the main sequence, then advice for each component beyond the distance threshold, furthest first. The HTML report has the same section. Pass `--no-recommendations` to leave it out.
+
 ## The metrics
 
 The metrics come from Robert C. Martin's work on package design, in *Agile Software Development: Principles, Patterns, and Practices*. They measure each component, which is a namespace by default, or a project or module with `--level`. Together they show whether a component is easy to change where it needs to be and safe to depend on where it needs to be.
@@ -393,6 +395,7 @@ In a mixed solution, an F# project that references a C# project is analysed with
 | `--max-distance <0..1>` | Exit with code 1 if any component's distance exceeds this |
 | `--effect-threshold <0..1>` | Under the `functional` profile, effectfulness beyond which a stable concrete component is in the Zone of Pain. Default: `0.25` |
 | `--fail-on-zone pain\|uselessness` | Exit with code 1 if any component is in this zone. Repeatable |
+| `--no-recommendations` | Leave the recommendations out of `table` and `html` reports |
 
 Test projects are recognised by the MSBuild `IsTestProject` property, which `Microsoft.NET.Test.Sdk` sets. A test project without it is analysed unless you exclude it. `--exclude` only hides components from the report: their dependencies still count in other components' numbers.
 
