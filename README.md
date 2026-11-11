@@ -44,6 +44,73 @@ EffectZones::Fixture.App     1   0   0   1  0.000  1.000  0.000  1.000  0.000
 
 `Pure` and `Store` are both stable and concrete, but only `Store` has side effects, so only `Store` is in the Zone of Pain.
 
+## The metrics
+
+The metrics come from Robert C. Martin's work on package design, in *Agile Software Development: Principles, Patterns, and Practices*. They measure each component, which is a namespace by default, or a project or module with `--level`. Together they show whether a component is easy to change where it needs to be and safe to depend on where it needs to be.
+
+### Instability
+
+Instability, I, measures how hard a component is to change, judged by its dependencies:
+
+```
+I = Ce / (Ca + Ce)
+```
+
+- **Afferent coupling**, Ca, counts the declarations outside the component that depend on it. These are its incoming dependencies, the code that may break when it changes.
+- **Efferent coupling**, Ce, counts the declarations inside the component that depend on something outside it. These are its outgoing dependencies, the reasons it may have to change.
+
+I runs from 0 to 1. A component at 0 is **stable**: others depend on it and it depends on nothing, so a change to it ripples out to all its dependents. That makes it hard to change, but it also has no reason to change because of others. A component at 1 is **unstable**: nothing depends on it and it depends on others, so it is free to change, and changes elsewhere may force it to.
+
+Neither end is bad. Martin's Stable Dependencies Principle says dependencies should point toward stability: a component should only depend on components more stable than itself.
+
+### Abstractness
+
+Abstractness, A, measures how much of a component is contract rather than implementation:
+
+```
+A = Na / Nc
+```
+
+Nc counts the component's declarations: types, and modules that contain values or functions. Na counts the abstract ones among them. A runs from 0, fully concrete, to 1, fully abstract.
+
+Classic object-oriented tools count interfaces and abstract classes as abstract. In functional code a contract is usually a function type, so under the default `functional` profile delegates, function-type abbreviations, records of functions and free-monad instruction unions count too. [What counts as abstract](#what-counts-as-abstract) has examples.
+
+Martin's Stable Abstractions Principle says a component should be as abstract as it is stable. A stable component should be abstract, so it can be extended without being changed. An unstable component should be concrete, because its implementation is what is meant to change.
+
+### Distance from the Main Sequence
+
+Plot every component with I on the x axis and A on the y axis. The two principles together say components should lie on the line from (0, 1), stable and abstract, to (1, 0), unstable and concrete. Martin calls this line the **main sequence**. A component on it has the balance between abstractness and stability that its dependencies call for.
+
+The distance from the main sequence, D, measures how far a component is from that balance:
+
+```
+D = |A + I - 1|
+```
+
+D runs from 0, on the line, to 1, in one of the two corners furthest from it. A low mean distance across a code base means its components are generally balanced. A high D on one component points to a design worth looking at, and which side of the line it is on says what kind of problem it is.
+
+## Identifying problematic design patterns
+
+The two corners furthest from the main sequence are where the design problems are. The tool puts a component in a zone when its D is beyond the distance threshold, 0.5 by default, and it lies in that corner.
+
+### The Zone of Pain
+
+The bottom left corner, near (0, 0), holds components that are **stable and concrete**. Much depends on them, but they offer no abstractions, so dependents are bound to their implementation. Any change ripples out to all of them, so the components become rigid and painful to change. A database schema or a concrete data-access class that the whole application uses is the typical example.
+
+Not everything here is a problem. Martin points out that a stable, concrete component that rarely changes, such as `String`, does no harm. In functional code that is the common case: a module of pure functions or immutable records behaves like `String`, because it has no reason to change other than its own logic. What makes stable, concrete code risky is side effects, such as I/O, mutable state or the clock, which tie it to things outside the program that do change.
+
+So under the default `functional` profile, a component is only in the Zone of Pain when its effectfulness, E, is also beyond the effect threshold, 0.25 by default. Under `--profile classic`, effects are ignored and every stable, concrete component far from the main sequence is in the zone, as in Martin's original definition. [What counts as effectful](#what-counts-as-effectful) lists the signals the tool looks for, and [functional-abstractness.md](functional-abstractness.md) gives the reasoning.
+
+To get a component out of the Zone of Pain, move its side effects to the edge of the program so the component keeps the pure logic, or give dependents abstractions to use, such as interfaces or function types, instead of its concrete code.
+
+### The Zone of Uselessness
+
+The top right corner, near (1, 1), holds components that are **abstract and unstable**. They declare interfaces or other abstractions, but nothing depends on them, while they depend on others. Abstractions nobody uses add indirection without benefit. They are often left over from a design that changed, or written for flexibility that never came.
+
+To get a component out of the Zone of Uselessness, remove the abstractions nothing implements or uses, merge the rest into the component that uses them, or, if they are meant to be shared, make them depend on less so that they become stable.
+
+The HTML report lists every component beyond the distance threshold, with advice for its position.
+
 ## What the numbers mean
 
 For each component:
@@ -59,11 +126,7 @@ For each component:
 | D | Distance from the main sequence, `abs(A + I - 1)`. 0 is ideal |
 | E | Effectfulness: share of counted declarations that are concrete and have side effects (see below) |
 | Data | Share of counted declarations that are concrete records, unions or enums |
-| Zone | `pain` or `uselessness` when D is beyond the distance threshold, as described below |
-
-A component is either stable and abstract, so others can depend on it safely, or unstable and concrete, so it is easy to change. The **Zone of Pain** holds concrete components that many others depend on, which are hard to change. The **Zone of Uselessness** holds abstract components nothing depends on.
-
-In functional code, stable and concrete is only risky when it comes with side effects. A stable module of pure functions or immutable records behaves like `String`: it rarely needs to change. So under the default `functional` profile, a component is only in the Zone of Pain when its E is also beyond the effect threshold, 0.25 by default. Under `--profile classic`, effects are ignored and the zones follow Martin's original definition.
+| Zone | `pain` or `uselessness` when D is beyond the distance threshold, as described in [Identifying problematic design patterns](#identifying-problematic-design-patterns) |
 
 A value is shown as `-` when it is undefined. Instability needs at least one dependency in or out, and abstractness needs at least one counted declaration. Undefined distances are left out of the mean.
 
@@ -330,7 +393,7 @@ In a mixed solution, an F# project that references a C# project is analysed with
 
 Test projects are recognised by the MSBuild `IsTestProject` property, which `Microsoft.NET.Test.Sdk` sets. A test project without it is analysed unless you exclude it. `--exclude` only hides components from the report: their dependencies still count in other components' numbers.
 
-The HTML report is a single self-contained page with a plot of every component against the main sequence and the full table. It works offline and in light or dark mode.
+The HTML report is a single self-contained page with a plot of every component against the main sequence, recommendations for each component beyond the distance threshold, and the full table. It works offline and in light or dark mode.
 
 ## Use in CI
 

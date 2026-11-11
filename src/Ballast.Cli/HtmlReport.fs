@@ -139,6 +139,14 @@ h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
 }
 .tooltip-value { font-weight: 600; font-variant-numeric: tabular-nums; }
 .tooltip-name { color: var(--text-secondary); overflow-wrap: anywhere; }
+.card > p { margin: 0 0 12px; }
+.guide { margin: 0 0 16px; padding-left: 20px; }
+.guide li { margin-bottom: 6px; }
+.advice { list-style: none; margin: 0; padding: 0; }
+.advice li { border-top: 1px solid var(--grid); padding: 10px 0; }
+.advice p { margin: 4px 0 0; color: var(--text-secondary); }
+.advice-name { font-weight: 600; overflow-wrap: anywhere; }
+.advice-values { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
 th, td { padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
@@ -284,6 +292,63 @@ let private metricsTable (report: Report) =
     + "<thead><tr><th>Component</th><th>Nc</th><th>Na</th><th>Ca</th><th>Ce</th><th>A</th><th>I</th><th>D</th><th>E</th><th>Data</th><th>Zone</th></tr></thead>\n"
     + $"<tbody>\n{body}</tbody>\n</table></div>"
 
+/// What a component far from the main sequence can do to get closer, or None when it is close enough.
+let private advice (report: Report) (row: ComponentMetrics) =
+    let functional = report.Profile = "functional"
+
+    match row.A, row.I, row.D with
+    | Some a, Some i, Some d when d > report.DistanceThreshold ->
+        match row.Zone with
+        | Some Pain when functional ->
+            Some
+                "Stable, concrete and effectful: much depends on it, and its side effects make it risky to change. Move the side effects to the edge of the program, so this component keeps the pure logic and callers pass effects in as functions or interfaces. Or put an abstraction, such as an interface, a function type or a record of functions, in front of the effectful parts and have dependents use that instead."
+        | Some Pain ->
+            Some
+                "Stable and concrete: much depends on it, so every change ripples out. Extract interfaces or abstract classes that dependents use instead of the concrete types, or split off the parts that change often so that less depends on them."
+        | Some Uselessness ->
+            Some
+                "Abstract and unstable: it declares abstractions, but little depends on them while they depend on much. Remove abstractions that nothing implements or uses, move single-use ones next to their only user, and make the rest depend on less so they become stable."
+        | None when functional && a < 0.5 && i < 0.5 ->
+            Some
+                "Stable and concrete, but mostly pure, so it is not in the Zone of Pain. Pure functions and immutable data rarely need to change, so much can safely depend on them. Keep side effects out of it."
+        | _ when a + i < 1.0 ->
+            Some
+                "More concrete than its stability calls for. Have dependents use abstractions rather than its concrete types, or move code that changes often out of it."
+        | _ ->
+            Some
+                "More abstract than its dependents justify. Remove abstractions that nothing uses, or have it depend on less so that it becomes stable."
+    | _ -> None
+
+let private recommendations (report: Report) =
+    let threshold = report.DistanceThreshold.ToString("0.##", CultureInfo.InvariantCulture)
+
+    let items =
+        report.Components
+        |> List.choose (fun row -> advice report row |> Option.map (fun text -> row, text))
+        |> List.sortByDescending (fun (row, _) -> row.D)
+        |> List.map (fun (row, text) ->
+            $"""<li><div class="advice-name">{encode row.Name}</div><div class="advice-values">A {formatNumber row.A} · I {formatNumber row.I} · D {formatNumber row.D} · E {formatNumber row.E}</div><p>{text}</p></li>""")
+
+    let listing =
+        if items.IsEmpty then
+            $"""<p class="note">No component is further than {threshold} from the main sequence, so no changes are suggested.</p>"""
+        else
+            $"""<p class="note">Components further than {threshold} from the main sequence, furthest first.</p>
+<ul class="advice">
+{String.concat "\n" items}
+</ul>"""
+
+    $"""<section class="card" id="recommendations">
+<h2>Recommendations</h2>
+<p>A component is balanced when its abstractness matches its stability: what much depends on should be abstract, and what depends on much should be concrete. To move a component toward the main sequence:</p>
+<ul class="guide">
+<li><strong>Below the line</strong>, too concrete for how much depends on it: give dependents abstractions to use, such as interfaces or, in functional code, function types and records of functions. Or move code that changes often out of it, so that less depends on that code.</li>
+<li><strong>Above the line</strong>, too abstract for how little depends on it: remove abstractions nothing uses, or merge them into the component that uses them. An abstraction is only worth having when others depend on it.</li>
+<li><strong>In functional code</strong>, keep effects at the edges. A stable component of pure functions and immutable data is safe even when it is concrete, so moving its side effects out is often all it needs.</li>
+</ul>
+{listing}
+</section>"""
+
 let html (report: Report) : string =
     let svg, unplotted = plot report
     let summary = report.Summary
@@ -316,6 +381,7 @@ let html (report: Report) : string =
 </div>
 {unplottedNote}
 </section>
+{recommendations report}
 <section class="card">
 <h2>All components</h2>
 {metricsTable report}
