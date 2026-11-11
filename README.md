@@ -6,22 +6,21 @@ It reads F# through the F# compiler and C# through Roslyn, so it sees the declar
 
 ## Install
 
-The package is not on NuGet yet. Until it is, build it from a clone of this repository and install it from the local package:
+Install it as a global tool from NuGet:
 
 ```
-dotnet pack src/Ballast.Cli -c Release -o ./nupkg
-dotnet tool install --global fsharp-ballast --add-source ./nupkg
+dotnet tool install --global fsharp-ballast
 ```
 
-Or as a local tool in another repository, with the path to that `nupkg` folder:
+Or as a local tool in a repository:
 
 ```
 dotnet new tool-manifest
-dotnet tool install fsharp-ballast --add-source <path to nupkg>
+dotnet tool install fsharp-ballast
 dotnet fsharp-ballast MySolution.sln
 ```
 
-To pick up changes, pack again and run `dotnet tool update --global fsharp-ballast --add-source ./nupkg`. Raise the version in `src/Ballast.Cli/Ballast.Cli.fsproj` first, because NuGet caches a package by its version.
+The version is below 1.0, so options and report formats may still change between releases.
 
 It needs the .NET SDK your projects build with, because it evaluates them with MSBuild. It restores them first, but never builds them.
 
@@ -99,7 +98,7 @@ The bottom left corner, near (0, 0), holds components that are **stable and conc
 
 Not everything here is a problem. Martin points out that a stable, concrete component that rarely changes, such as `String`, does no harm. In functional code that is the common case: a module of pure functions or immutable records behaves like `String`, because it has no reason to change other than its own logic. What makes stable, concrete code risky is side effects, such as I/O, mutable state or the clock, which tie it to things outside the program that do change.
 
-So under the default `functional` profile, a component is only in the Zone of Pain when its effectfulness, E, is also beyond the effect threshold, 0.25 by default. Under `--profile classic`, effects are ignored and every stable, concrete component far from the main sequence is in the zone, as in Martin's original definition. [What counts as effectful](#what-counts-as-effectful) lists the signals the tool looks for, and [functional-abstractness.md](functional-abstractness.md) gives the reasoning.
+So under the default `functional` profile, a component is only in the Zone of Pain when its effectfulness, E, is also beyond the effect threshold, 0.25 by default. Under `--profile classic`, effects are ignored and every stable, concrete component far from the main sequence is in the zone, as in Martin's original definition. [What counts as effectful](#what-counts-as-effectful) lists the signals the tool looks for, and [functional-abstractness.md](https://github.com/shazmodan/fsharp-ballast/blob/main/functional-abstractness.md) gives the reasoning.
 
 To get a component out of the Zone of Pain, move its side effects to the edge of the program so the component keeps the pure logic, or give dependents abstractions to use, such as interfaces or function types, instead of its concrete code.
 
@@ -418,3 +417,18 @@ fsharp-ballast MySolution.sln --fail-on-zone pain --format html --output metrics
 - In C#, LINQ query syntax (`from … select`) and the `Dispose` call behind a pattern-based `using` create no dependency.
 - A C# project that references an F# project cannot be analysed yet.
 - A C# component's project name is its assembly name, which is normally the same as the project name.
+
+## Building from source
+
+To try a change before it is released, pack the tool from a clone of this repository and install it from the local package:
+
+```
+dotnet pack src/Ballast.Cli -c Release -o ./nupkg
+dotnet tool install --global fsharp-ballast --add-source ./nupkg
+```
+
+To pick up later changes, pack again and run `dotnet tool update --global fsharp-ballast --add-source ./nupkg`. Raise the version in `src/Ballast.Cli/Ballast.Cli.fsproj` first, because NuGet caches a package by its version.
+
+## License
+
+MIT. See [LICENSE](https://github.com/shazmodan/fsharp-ballast/blob/main/LICENSE).

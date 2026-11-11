@@ -8,6 +8,13 @@
     <Description>Measures Abstractness, Instability, Distance from the Main Sequence and effectfulness for F# and C# projects and solutions.</Description>
     <PackageTags>fsharp;csharp;metrics;architecture;coupling;static-analysis</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Authors>William Bergqvist</Authors>
+    <Copyright>Copyright (c) 2026 William Bergqvist</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/shazmodan/fsharp-ballast</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/shazmodan/fsharp-ballast.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>First release. Options and report formats may still change before 1.0.</PackageReleaseNotes>
     <!-- Run on newer .NET runtimes than the one the tool was built for. -->
     <RollForward>Major</RollForward>
   </PropertyGroup>
