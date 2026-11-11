@@ -59,4 +59,4 @@ type Arguments =
             | Effect_Threshold _ ->
                 "under the functional profile, effectfulness beyond which a stable concrete component is in the Zone of Pain, 0 to 1 (default: 0.25)."
             | Fail_On_Zone _ -> "exit with code 1 if any component is in this zone: pain or uselessness. Repeatable."
-            | No_Recommendations -> "leave the recommendations out of table and html reports."
+            | No_Recommendations -> "leave the recommendations out of the report: the section in table and html, the advice column in csv and the recommendations object in json."

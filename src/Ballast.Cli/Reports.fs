@@ -159,7 +159,8 @@ let table (withRecommendations: bool) (report: Report) : string =
     |> String.concat "\n"
     |> fun text -> text + "\n"
 
-let csv (report: Report) : string =
+/// One row per component, with an advice column at the end unless withRecommendations is false.
+let csv (withRecommendations: bool) (report: Report) : string =
     let quoted (value: string) =
         if value.IndexOfAny([| ','; '"'; '\n' |]) >= 0 then
             "\"" + value.Replace("\"", "\"\"") + "\""
@@ -172,7 +173,7 @@ let csv (report: Report) : string =
         | None -> ""
 
     let lines =
-        [ "name,nc,na,ca,ce,a,i,d,e,dataShare,zone"
+        [ "name,nc,na,ca,ce,a,i,d,e,dataShare,zone" + (if withRecommendations then ",advice" else "")
           for row in report.Components do
               [ quoted row.Name
                 string row.Nc
@@ -184,12 +185,15 @@ let csv (report: Report) : string =
                 number row.D
                 number row.E
                 number row.DataShare
-                row.Zone |> Option.map zoneName |> Option.defaultValue "" ]
+                row.Zone |> Option.map zoneName |> Option.defaultValue ""
+                if withRecommendations then
+                    advice report row |> Option.map quoted |> Option.defaultValue "" ]
               |> String.concat "," ]
 
     String.concat "\n" lines + "\n"
 
-let json (report: Report) : string =
+/// The report as JSON, with a recommendations object at the end unless withRecommendations is false.
+let json (withRecommendations: bool) (report: Report) : string =
     use stream = new MemoryStream()
 
     let options =
@@ -232,6 +236,31 @@ let json (report: Report) : string =
     optionalNumber "meanDistance" report.Summary.MeanDistance
     writer.WriteNumber("isolated", report.Summary.Isolated)
     writer.WriteEndObject()
+
+    if withRecommendations then
+        writer.WriteStartObject "recommendations"
+        writer.WriteString("introduction", recommendationsIntro)
+        writer.WriteStartArray "guide"
+
+        for heading, rest in recommendationsGuide do
+            writer.WriteStartObject()
+            writer.WriteString("heading", heading)
+            writer.WriteString("text", rest.TrimStart(',', ' '))
+            writer.WriteEndObject()
+
+        writer.WriteEndArray()
+        writer.WriteNumber("distanceThreshold", report.DistanceThreshold)
+        writer.WriteStartArray "components"
+
+        for row, text in recommended report do
+            writer.WriteStartObject()
+            writer.WriteString("name", row.Name)
+            writer.WriteString("advice", text)
+            writer.WriteEndObject()
+
+        writer.WriteEndArray()
+        writer.WriteEndObject()
+
     writer.WriteEndObject()
     writer.Flush()
     Encoding.UTF8.GetString(stream.ToArray())

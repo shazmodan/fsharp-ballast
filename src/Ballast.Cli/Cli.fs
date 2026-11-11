@@ -30,8 +30,8 @@ let private globPattern (glob: string) =
 let private render format withRecommendations report =
     match format with
     | Table -> Reports.table withRecommendations report
-    | Json -> Reports.json report
-    | Csv -> Reports.csv report
+    | Json -> Reports.json withRecommendations report
+    | Csv -> Reports.csv withRecommendations report
     | Html -> HtmlReport.html withRecommendations report
 
 let private levelOf option =

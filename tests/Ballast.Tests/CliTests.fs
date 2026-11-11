@@ -224,9 +224,47 @@ let tests =
             Expect.stringContains run.Output "3 components, mean distance 0.333, 0 isolated" "summary"
         }
 
+        test "CSV ends each row with advice unless --no-recommendations is given" {
+            let run = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "csv"; "--profile"; "classic" ]
+            let lines = run.Output.Split('\n') |> Array.map (fun l -> l.TrimEnd '\r') |> Array.filter ((<>) "")
+
+            Expect.equal run.ExitCode 0 $"exit code, errors: {run.Errors}"
+            Expect.equal lines[0] "name,nc,na,ca,ce,a,i,d,e,dataShare,zone,advice" "header"
+
+            Expect.contains
+                lines
+                $"Layered::Fixture.Domain,2,0,1,0,0.000,0.000,1.000,0.000,0.500,pain,\"Stable and concrete: much depends on it, so every change ripples out. Extract interfaces or abstract classes that dependents use instead of the concrete types, or split off the parts that change often so that less depends on them.\""
+                "quoted advice for Domain"
+
+            Expect.contains lines "Layered::Fixture.App,2,0,0,2,0.000,1.000,0.000,1.000,0.000,," "no advice on the main sequence"
+        }
+
+        test "JSON has a recommendations object unless --no-recommendations is given" {
+            let shown = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json"; "--profile"; "classic" ]
+            let hidden = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "json"; "--no-recommendations" ]
+
+            Expect.equal shown.ExitCode 0 $"exit code, errors: {shown.Errors}"
+            use document = JsonDocument.Parse shown.Output
+            let recommendations = document.RootElement.GetProperty "recommendations"
+            Expect.stringContains (recommendations.GetProperty("introduction").GetString()) "balanced" "introduction"
+
+            let guide = recommendations.GetProperty("guide").EnumerateArray() |> List.ofSeq
+            Expect.equal (guide |> List.map (fun g -> g.GetProperty("heading").GetString())) [ "Below the line"; "Above the line"; "In functional code" ] "guide headings"
+            Expect.stringStarts (guide[0].GetProperty("text").GetString()) "too concrete" "guide text without the leading comma"
+            Expect.equal (recommendations.GetProperty("distanceThreshold").GetDouble()) 0.5 "threshold"
+
+            let advised = recommendations.GetProperty("components").EnumerateArray() |> List.ofSeq
+            Expect.equal (advised |> List.map (fun c -> c.GetProperty("name").GetString())) [ "Layered::Fixture.Domain" ] "only Domain needs advice"
+            Expect.stringStarts (advised[0].GetProperty("advice").GetString()) "Stable and concrete" "Domain's advice"
+
+            use plain = JsonDocument.Parse hidden.Output
+            let mutable ignored = Unchecked.defaultof<JsonElement>
+            Expect.isFalse (plain.RootElement.TryGetProperty("recommendations", &ignored)) "left out with the option"
+        }
+
         test "CSV has one row per component and leaves undefined values empty" {
-            let layered = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "csv"; "--profile"; "classic" ]
-            let isolated = runOnFixture "Isolated" "Isolated.fsproj" [ "--format"; "csv" ]
+            let layered = runOnFixture "Layered" "Layered.fsproj" [ "--format"; "csv"; "--profile"; "classic"; "--no-recommendations" ]
+            let isolated = runOnFixture "Isolated" "Isolated.fsproj" [ "--format"; "csv"; "--no-recommendations" ]
             let linesOf (run: Run) = run.Output.Split('\n') |> Array.map (fun l -> l.TrimEnd '\r') |> Array.filter ((<>) "")
 
             let layeredLines = linesOf layered
