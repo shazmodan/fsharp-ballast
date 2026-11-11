@@ -6,17 +6,22 @@ It reads F# through the F# compiler and C# through Roslyn, so it sees the declar
 
 ## Install
 
+The package is not on NuGet yet. Until it is, build it from a clone of this repository and install it from the local package:
+
 ```
-dotnet tool install --global fsharp-ballast
+dotnet pack src/Ballast.Cli -c Release -o ./nupkg
+dotnet tool install --global fsharp-ballast --add-source ./nupkg
 ```
 
-Or as a local tool in a repository:
+Or as a local tool in another repository, with the path to that `nupkg` folder:
 
 ```
 dotnet new tool-manifest
-dotnet tool install fsharp-ballast
+dotnet tool install fsharp-ballast --add-source <path to nupkg>
 dotnet fsharp-ballast MySolution.sln
 ```
+
+To pick up changes, pack again and run `dotnet tool update --global fsharp-ballast --add-source ./nupkg`. Raise the version in `src/Ballast.Cli/Ballast.Cli.fsproj` first, because NuGet caches a package by its version.
 
 It needs the .NET SDK your projects build with, because it evaluates them with MSBuild. It restores them first, but never builds them.
 
