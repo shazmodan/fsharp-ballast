@@ -66,9 +66,17 @@ public static class PureFunctions
     public static int Add(int a, int b) => a + b;
 
     public static string Combine(string folder) => Path.Combine(folder, "file.txt");
+
+    public static string Lines(string first, string second) => first + Environment.NewLine + second;
 }
 
 public record Data(int Id, string Name);
+
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class MarkerAttribute : Attribute
+{
+    public string? Name { get; set; }
+}
 
 public record InitOnly
 {

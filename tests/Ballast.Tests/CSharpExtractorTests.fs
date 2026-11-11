@@ -197,7 +197,7 @@ let tests =
             }
 
             for name in
-                [ "PureFunctions"; "Data"; "InitOnly"; "WithReadonly"; "Point"; "Level"; "Handler"; "IPort"; "AbstractBase" ] do
+                [ "PureFunctions"; "Data"; "MarkerAttribute";"InitOnly"; "WithReadonly"; "Point"; "Level"; "Handler"; "IPort"; "AbstractBase" ] do
                 test $"{name} is pure" { Expect.isEmpty (signalsOf name) "no signals" }
         ]
 

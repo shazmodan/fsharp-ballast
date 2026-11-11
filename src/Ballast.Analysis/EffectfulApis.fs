@@ -7,6 +7,9 @@ let private namespaces =
 /// Types inside those namespaces that only compute, such as Path, which manipulates strings.
 let private pureTypes = set [ "System.IO.Path" ]
 
+/// Members of effectful types that are constants, such as the platform's line ending.
+let private pureMembers = set [ "System.Environment.NewLine" ]
+
 let private types =
     set
         [ "System.Console"
@@ -40,11 +43,13 @@ let classify (namespaceName: string) (typeName: string) (memberName: string opti
     let fullType = if namespaceName = "" then typeName else namespaceName + "." + typeName
     let fullMember = memberName |> Option.map (fun name -> fullType + "." + name)
 
-    if pureTypes.Contains fullType then
+    if pureTypes.Contains fullType || fullMember |> Option.exists pureMembers.Contains then
         None
     elif fullMember |> Option.exists members.Contains then
         fullMember
-    elif types.Contains fullType then
+    // A bare mention of one of these types performs nothing. Calls show up as member uses,
+    // which keeps constants such as Environment.NewLine pure.
+    elif memberName.IsSome && types.Contains fullType then
         Some fullType
     elif namespaces |> List.exists (fun n -> namespaceName = n || namespaceName.StartsWith(n + ".")) then
         Some fullType

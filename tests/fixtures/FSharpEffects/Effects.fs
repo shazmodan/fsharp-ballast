@@ -57,6 +57,7 @@ type Service() =
 module Pure =
     let add (a: int) (b: int) = a + b
     let combine (folder: string) = Path.Combine(folder, "file.txt")
+    let lines (first: string) (second: string) = first + Environment.NewLine + second
 
     let sum (values: int list) =
         let mutable total = 0
@@ -91,3 +92,8 @@ type IPort =
     abstract Save: int -> unit
 
 type Clock = unit -> DateTime
+
+[<AttributeUsage(AttributeTargets.Class)>]
+type MarkerAttribute() =
+    inherit Attribute()
+    member val Name = "" with get, set

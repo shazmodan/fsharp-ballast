@@ -90,7 +90,10 @@ let private asyncTypes =
 let private isUnit fsharpType = definitionName fsharpType = "Microsoft.FSharp.Core.Unit"
 
 /// Signals from the members and fields a declaration defines itself. Locals inside function bodies are not members.
+/// An attribute's settable properties are named arguments the runtime sets once, so they are not mutable state.
 let private memberSignals (entity: FSharpEntity) =
+    let attribute = entity.IsAttributeType
+
     [ for value in entity.MembersFunctionsAndValues do
           if not value.IsCompilerGenerated && not value.IsConstructor then
               let name = value.DisplayName
@@ -98,7 +101,8 @@ let private memberSignals (entity: FSharpEntity) =
               if value.IsPropertySetterMethod
                  || value.IsMutable
                  || definitionName value.FullType = "Microsoft.FSharp.Core.FSharpRef`1" then
-                  MutableState name
+                  if not attribute then
+                      MutableState name
               else
                   let returned = value.ReturnParameter.Type
 
@@ -114,7 +118,7 @@ let private memberSignals (entity: FSharpEntity) =
                       TakesUnit name
 
       for field in entity.FSharpFields do
-          if field.IsMutable then
+          if field.IsMutable && not attribute then
               MutableState field.Name ]
 
 /// The effectful framework API a symbol use refers to, if any.

@@ -91,6 +91,8 @@ Matched on the target symbol's namespace, type or member:
 - **Types:** `System.Console`, `System.Random`, `System.Environment`, `System.Threading.Thread`, `System.Diagnostics.Stopwatch`, `System.Net.Http.HttpClient`
 - **Members:** `DateTime.Now`, `DateTime.UtcNow`, `DateTime.Today`, `DateTimeOffset.Now`, `DateTimeOffset.UtcNow`, `Guid.NewGuid`, `Random.Shared`
 
+A listed type counts only through a member use, since naming the type performs nothing, and `Environment.NewLine` is treated as pure (found on Argu, 2026-11-11). Attribute classes report no mutable state, because their settable properties are named arguments (found on GuardClauses, 2026-11-11).
+
 These are framework APIs, which the extractor currently drops as dependencies. Signal detection therefore runs on symbol uses before the framework filter.
 
 ## 5. Zones under the functional profile

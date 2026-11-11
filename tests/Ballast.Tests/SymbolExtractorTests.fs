@@ -172,7 +172,7 @@ let tests =
                 Expect.equal (signalsOf "Logging") [ ReturnsUnit "write" ] "Logging.write"
             }
 
-            for name in [ "Pure"; "Data"; "Shape"; "Level"; "Money"; "Patterns"; "IPort"; "Clock" ] do
+            for name in [ "Pure"; "Data"; "Shape"; "Level"; "Money"; "Patterns"; "IPort"; "Clock"; "MarkerAttribute" ] do
                 test $"{name} is pure" { Expect.isEmpty (signalsOf name) "no signals" }
         ]
     ]

@@ -75,8 +75,8 @@ F# and C# don't track side effects, so the tool looks for signals in each concre
 - a function or method that returns `unit` or `void`
 - a function or method that returns `Async`, `Task` or `ValueTask`
 - an F# module function that takes `()`, such as `let now () = ...`
-- mutable state: `let mutable`, `mutable` record fields, `ref` cells, settable properties and non-readonly fields
-- a use of an effectful framework API: `System.IO` (except `Path`), `System.Net`, data access, `Console`, `Random`, `Environment`, `Thread`, `Stopwatch`, `Process`, `DateTime.Now`, `Guid.NewGuid`, or F#'s `printf` family
+- mutable state: `let mutable`, `mutable` record fields, `ref` cells, settable properties and non-readonly fields, except on attribute classes, whose settable properties are named arguments
+- a use of an effectful framework API: `System.IO` (except `Path`), `System.Net`, data access, a member of `Console`, `Random`, `Environment` (except `NewLine`), `Thread`, `Stopwatch` or `Process`, `DateTime.Now`, `Guid.NewGuid`, or F#'s `printf` family
 
 One signal is enough to make a declaration effectful. Interfaces and other abstractions are never effectful, because hiding an effect behind one is exactly the point. Effects are not inherited: calling an effectful module does not make the caller effectful.
 

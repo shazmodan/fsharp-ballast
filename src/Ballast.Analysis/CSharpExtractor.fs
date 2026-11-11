@@ -102,9 +102,16 @@ let private fullMetadataName (symbol: ITypeSymbol) =
         named.ContainingNamespace.ToDisplayString() + "." + named.OriginalDefinition.MetadataName
     | _ -> symbol.MetadataName
 
+let private isAttribute (symbol: INamedTypeSymbol) =
+    Seq.unfold (fun (t: INamedTypeSymbol) -> if isNull t then None else Some(t, t.BaseType)) symbol.BaseType
+    |> Seq.exists (fun t -> fullMetadataName t = "System.Attribute")
+
 /// Signals from the members a type declares itself. Members the compiler synthesises, such as a
-/// positional record's Deconstruct or a property's backing field, are left out.
+/// positional record's Deconstruct or a property's backing field, are left out. An attribute's
+/// settable properties are named arguments the runtime sets once, so they are not mutable state.
 let private memberSignals (symbol: INamedTypeSymbol) =
+    let attribute = isAttribute symbol
+
     [ for item in symbol.GetMembers() do
           if not item.IsImplicitlyDeclared then
               match item with
@@ -114,9 +121,11 @@ let private memberSignals (symbol: INamedTypeSymbol) =
 
                   if asyncTypes.Contains(fullMetadataName method.ReturnType) then
                       ReturnsAsync method.Name
-              | :? IPropertySymbol as property when not (isNull property.SetMethod) && not property.SetMethod.IsInitOnly ->
+              | :? IPropertySymbol as property when
+                  not attribute && not (isNull property.SetMethod) && not property.SetMethod.IsInitOnly
+                  ->
                   MutableState property.Name
-              | :? IFieldSymbol as field when not field.IsReadOnly && not field.IsConst ->
+              | :? IFieldSymbol as field when not attribute && not field.IsReadOnly && not field.IsConst ->
                   MutableState field.Name
               | _ -> () ]
 
