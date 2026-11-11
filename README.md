@@ -174,6 +174,119 @@ module Types =
 
 C# follows the same rules: interfaces and abstract classes, including abstract records, are abstract under both profiles, while delegates and records whose positional parameters are all delegates, such as `record Repo(Func<int, string> Load)`, are abstract only under `functional`. A static class counts like an F# module: it is a concrete declaration if it has members, and is not counted if it only holds nested types. Records and enums count as data.
 
+#### C# examples
+
+As with F#, each comment gives the classification under `functional`, then under `classic`, and every example was checked by running the tool on it.
+
+Abstract under both profiles:
+
+```csharp
+// 1. An interface. Abstract / abstract.
+public interface IUserStore
+{
+    string? Find(int id);
+    void Save(int id, string name);
+}
+
+// 2. An interface with a default implementation. Still abstract / abstract.
+public interface IGreeter
+{
+    string Name { get; }
+    string Greet() => $"Hello {Name}";
+}
+
+// 3. An abstract class, even with some implemented members. Abstract / abstract.
+public abstract class Shape
+{
+    public abstract double Area { get; }
+    public string Describe() => $"Area {Area}";
+}
+
+// 4. An abstract record. Abstract / abstract.
+public abstract record Event(DateTime At);
+```
+
+Abstract only under `functional`, because a function type is the functional way to state a contract:
+
+```csharp
+// 5. A delegate. Abstract / concrete.
+public delegate bool Validator(string value);
+
+// 6. A record whose positional parameters are all delegates, a record of ports.
+//    Abstract / concrete.
+public record UserPorts(Func<int, string?> Find, Action<int, string> Save);
+```
+
+Concrete under both profiles:
+
+```csharp
+// 7. A record of data. Concrete, counted as data.
+public record User(int Id, string Name);
+
+// 8. A record struct. Concrete, counted as data.
+public readonly record struct Point(int X, int Y);
+
+// 9. An enum. Concrete, counted as data.
+public enum Level { Low, High }
+
+// 10. A class that implements an abstraction. Concrete.
+public sealed class Circle(double radius) : Shape
+{
+    public override double Area => Math.PI * radius * radius;
+}
+
+// 11. A static class with methods, the C# counterpart of a module. Concrete.
+public static class Pricing
+{
+    public static decimal Discount(decimal rate, decimal price) => price * (1 - rate);
+}
+
+// 12. A class with mutable state. Concrete, and effectful because of its
+//     non-readonly field and void method.
+public class Counter
+{
+    private int count;
+    public void Increment() => count++;
+    public int Count => count;
+}
+
+// 13. A plain struct. Concrete, but not counted as data, because only records
+//     and enums are. Init-only properties are not mutable state.
+public struct Size
+{
+    public int Width { get; init; }
+    public int Height { get; init; }
+}
+
+// 14. A record that mixes data and delegates. One plain parameter makes it
+//     concrete, counted as data.
+public record Service(string Name, Action Run);
+
+// 15. A record whose delegates are properties in its body rather than positional
+//     parameters. Only positional parameters are looked at, so it is concrete,
+//     counted as data.
+public record Handlers
+{
+    public required Func<int, string> Load { get; init; }
+}
+```
+
+Not counted under either profile, so they change neither Nc nor A:
+
+```csharp
+// 16. A static class that only holds types. The static class is not counted,
+//     but OrderId is counted on its own as a concrete data type.
+public static class Types
+{
+    public record OrderId(int Value);
+}
+
+// 17. A using alias. It declares no type, so there is nothing to count. That
+//     holds for an alias of a delegate type such as Func<DateTime> too, unlike
+//     F#'s type Clock = unit -> DateTime.
+using UserId = int;
+```
+
 ### What counts as effectful
 
 F# and C# don't track side effects, so the tool looks for signals in each concrete declaration's own members:
