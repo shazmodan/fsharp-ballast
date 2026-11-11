@@ -4,6 +4,10 @@ A command-line tool that measures Robert C. Martin's package metrics for F# and 
 
 It reads F# through the F# compiler and C# through Roslyn, so it sees the declarations you wrote rather than the extra types the compilers generate. A solution can mix both languages.
 
+## Why the name "ballast"?
+Ballast primarily means a heavy material or device used to provide stability, balance, or a steady foundation.
+Also in Swedish it means "the coolest" 😎
+
 ## Install
 
 Install it as a global tool from NuGet:
