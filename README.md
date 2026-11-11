@@ -71,6 +71,107 @@ A value is shown as `-` when it is undefined. Instability needs at least one dep
 
 With the default `functional` profile, these count as abstract: interfaces, abstract classes, type abbreviations of function types such as `type Clock = unit -> DateTime`, records whose fields are all functions, delegates, and free-monad instruction unions such as `ReadUser of UserId * (User -> 'next)`. With `--profile classic`, only interfaces and abstract classes do, which matches object-oriented tools.
 
+#### F# examples
+
+Each comment gives the classification under `functional`, then under `classic`. Every example was checked by running the tool on it.
+
+Abstract under both profiles:
+
+```fsharp
+// 1. An interface. Abstract / abstract.
+type IUserStore =
+    abstract Find: int -> string option
+    abstract Save: int -> string -> unit
+
+// 2. An abstract class, even with some implemented members. Abstract / abstract.
+[<AbstractClass>]
+type Shape() =
+    abstract Area: float
+    member shape.Describe() = $"Area {shape.Area}"
+```
+
+Abstract only under `functional`, because a function type is the functional way to state a contract:
+
+```fsharp
+// 3. An abbreviation of a function type. Abstract / not counted.
+type Clock = unit -> System.DateTime
+
+// 4. A record whose fields are all functions, a record of ports. Abstract / concrete.
+type UserPorts =
+    { Find: int -> string option
+      Save: int -> string -> unit }
+
+// 5. A delegate. Abstract / concrete.
+type Validator = delegate of string -> bool
+
+// 6. A free-monad instruction union. Every case ends in 'next, and at least one
+//    case ends in a function returning it. Abstract / concrete.
+type Instruction<'next> =
+    | ReadUser of int * (string -> 'next)
+    | WriteLog of string * 'next
+```
+
+Concrete under both profiles:
+
+```fsharp
+// 7. A record of data. Concrete, counted as data.
+type User = { Id: int; Name: string }
+
+// 8. A union of data. Concrete, counted as data.
+type Payment =
+    | Cash
+    | Card of number: string
+
+// 9. An enum. Concrete, counted as data.
+type Level =
+    | Low = 0
+    | High = 1
+
+// 10. A class with an implementation. Concrete, and effectful because of its mutable field.
+type Counter() =
+    let mutable count = 0
+    member _.Increment() = count <- count + 1
+    member _.Count = count
+
+// 11. A module with functions. Concrete.
+module Pricing =
+    let discount (rate: decimal) (price: decimal) = price * (1m - rate)
+
+// 12. A record that mixes data and functions. One plain field makes it concrete,
+//     counted as data.
+type Service =
+    { Name: string
+      Run: unit -> unit }
+
+// 13. The program type that wraps instructions. Its Pure case ends in 'a, not
+//     in a function, so it is concrete, counted as data.
+type Program<'a> =
+    | Free of Instruction<Program<'a>>
+    | Pure of 'a
+
+// 14. A union whose cases all end in 'next, but none in a function. Concrete,
+//     counted as data.
+type Step<'next> =
+    | Start of 'next
+    | Stop of 'next
+```
+
+Not counted under either profile, so they change neither Nc nor A:
+
+```fsharp
+// 15. An abbreviation of a type that is not a function.
+type UserId = int
+
+// 16. A unit of measure.
+[<Measure>]
+type cm
+
+// 17. A module that only holds types. The module is not counted, but OrderId is
+//     counted on its own as a concrete data type.
+module Types =
+    type OrderId = OrderId of int
+```
+
 C# follows the same rules: interfaces and abstract classes, including abstract records, are abstract under both profiles, while delegates and records whose positional parameters are all delegates, such as `record Repo(Func<int, string> Load)`, are abstract only under `functional`. A static class counts like an F# module: it is a concrete declaration if it has members, and is not counted if it only holds nested types. Records and enums count as data.
 
 ### What counts as effectful
