@@ -1,6 +1,7 @@
 # fsharp-ballast
 
 [![NuGet](https://img.shields.io/nuget/v/fsharp-ballast)](https://www.nuget.org/packages/fsharp-ballast)
+[![CI](https://github.com/shazmodan/fsharp-ballast/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shazmodan/fsharp-ballast/actions/workflows/ci.yml)
 
 A command-line tool that measures Robert C. Martin's package metrics for F# and C# code: **Abstractness**, **Instability** and **Distance from the Main Sequence**, plus **effectfulness**. Point it at a project or solution and it reports how each component balances stability against abstraction, and which ones sit in the Zone of Pain or the Zone of Uselessness.
 
