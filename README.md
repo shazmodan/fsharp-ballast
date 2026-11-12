@@ -49,6 +49,34 @@ EffectZones::Fixture.App     1   0   0   1  0.000  1.000  0.000  1.000  0.000
 
 After the summary, the table lists recommendations: general guidance on moving toward the main sequence, then advice for each component beyond the distance threshold, furthest first. The HTML report has the same section. CSV ends each row with an `advice` column, empty for components that need none, and JSON ends with a `recommendations` object holding the guidance and the advice for each component. Pass `--no-recommendations` to leave all of it out.
 
+## Building from source
+
+To try the latest code, or a change of your own, before it is released, clone the repository, pack the tool and install it from the local package. Building needs the .NET 10 SDK.
+
+```
+git clone https://github.com/shazmodan/fsharp-ballast.git
+cd fsharp-ballast
+dotnet pack src/Ballast.Cli -c Release -o ./nupkg
+dotnet tool install --global fsharp-ballast --add-source ./nupkg
+```
+
+If the tool is already installed, from NuGet or from an earlier pack, `install` refuses. Run `dotnet tool update --global fsharp-ballast --add-source ./nupkg` instead.
+
+NuGet caches a package by its version, so a new pack with the same version can be ignored in favour of the cached one. Raise `<Version>` in `src/Ballast.Cli/Ballast.Cli.fsproj` before packing, for example to `0.1.1-local`. Or uninstall the tool and clear the cache, which makes every project download its packages again on the next restore:
+
+```
+dotnet tool uninstall --global fsharp-ballast
+dotnet nuget locals global-packages --clear
+```
+
+To run it from the clone without installing it:
+
+```
+dotnet run --project src/Ballast.Cli -- path/to/MySolution.slnx --format html --output report.html
+```
+
+To remove it, run `dotnet tool uninstall --global fsharp-ballast`.
+
 ## The metrics
 
 The metrics come from Robert C. Martin's work on package design, in *Agile Software Development: Principles, Patterns, and Practices*. They measure each component, which is a namespace by default, or a project or module with `--level`. Together they show whether a component is easy to change where it needs to be and safe to depend on where it needs to be.
@@ -424,17 +452,6 @@ fsharp-ballast MySolution.sln --fail-on-zone pain --format html --output metrics
 - In C#, LINQ query syntax (`from … select`) and the `Dispose` call behind a pattern-based `using` create no dependency.
 - A C# project that references an F# project cannot be analysed yet.
 - A C# component's project name is its assembly name, which is normally the same as the project name.
-
-## Building from source
-
-To try a change before it is released, pack the tool from a clone of this repository and install it from the local package:
-
-```
-dotnet pack src/Ballast.Cli -c Release -o ./nupkg
-dotnet tool install --global fsharp-ballast --add-source ./nupkg
-```
-
-To pick up later changes, pack again and run `dotnet tool update --global fsharp-ballast --add-source ./nupkg`. Raise the version in `src/Ballast.Cli/Ballast.Cli.fsproj` first, because NuGet caches a package by its version.
 
 ## License
 
