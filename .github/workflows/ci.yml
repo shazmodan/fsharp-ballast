@@ -1,0 +1,30 @@
+# Runs the tests on every push to a branch. Version tags are tested by publish.yml instead.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes an older run pointless, so it is cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # The tests have only been run on Windows so far.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet run --project tests/Ballast.Tests -c Release
