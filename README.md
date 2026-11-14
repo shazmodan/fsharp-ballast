@@ -139,6 +139,158 @@ So under the default `functional` profile, a component is only in the Zone of Pa
 
 To get a component out of the Zone of Pain, move its side effects to the edge of the program so the component keeps the pure logic, or give dependents abstractions to use, such as interfaces or function types, instead of its concrete code.
 
+#### Example: an order store in the Zone of Pain
+
+Here `Shop.Orders` holds the order type, the code that reads and writes orders as files, and the workflow that places an order. Billing, shipping and the application all use it, and it uses nothing else in the solution, so it is stable. Everything in it is concrete, and two of its three declarations touch the file system, the clock or a random number generator:
+
+```fsharp
+namespace Shop.Orders
+
+open System
+open System.IO
+open System.Text.Json
+
+type Order =
+    { Id: int
+      Customer: string
+      Total: decimal
+      PlacedAt: DateTime }
+
+module OrderStore =
+    let private path (id: int) = Path.Combine("orders", $"{id}.json")
+
+    let load (id: int) : Order =
+        JsonSerializer.Deserialize<Order>(File.ReadAllText(path id))
+
+    let save (order: Order) : unit =
+        File.WriteAllText(path order.Id, JsonSerializer.Serialize order)
+
+module OrderService =
+    let place (customer: string) (total: decimal) : Order =
+        let order =
+            { Id = Random.Shared.Next()
+              Customer = customer
+              Total = total
+              PlacedAt = DateTime.Now }
+        OrderStore.save order
+        order
+
+namespace Shop.Billing
+
+open Shop.Orders
+
+module Invoice =
+    let forOrder (id: int) : string =
+        let order = OrderStore.load id
+        $"Invoice for {order.Customer}: {order.Total}"
+
+namespace Shop.Shipping
+
+open Shop.Orders
+
+module Label =
+    let forOrder (id: int) : string =
+        let order = OrderStore.load id
+        $"Ship to {order.Customer}, placed {order.PlacedAt:d}"
+
+namespace Shop.App
+
+open Shop.Orders
+
+module Main =
+    let run () =
+        let order = OrderService.place "Ada" 42m
+        printfn "%s" (Shop.Billing.Invoice.forOrder order.Id)
+        printfn "%s" (Shop.Shipping.Label.forOrder order.Id)
+```
+
+```
+Component            Nc  Na  Ca  Ce      A      I      D      E   Data  Zone
+Shop::Shop.Orders     3   0   3   0  0.000  0.000  1.000  0.667  0.333  pain
+Shop::Shop.Billing    1   0   1   1  0.000  0.500  0.500  0.000  0.000
+Shop::Shop.Shipping   1   0   1   1  0.000  0.500  0.500  0.000  0.000
+Shop::Shop.App        1   0   0   1  0.000  1.000  0.000  1.000  0.000
+```
+
+Billing and shipping are bound to a file layout they never asked for. Moving orders to a database, or testing an invoice without a disk, means changing `Shop.Orders` and everything that calls `OrderStore.load`.
+
+The fix applies both remedies. `Shop.Orders` keeps the data and the pure logic, and states what it needs from storage as a record of functions. Billing and shipping take an `Order` instead of loading one. The file I/O, the clock and the random ID move to `Shop.App`, the edge of the program, which builds the real store and passes values in:
+
+```fsharp
+namespace Shop.Orders
+
+open System
+
+type Order =
+    { Id: int
+      Customer: string
+      Total: decimal
+      PlacedAt: DateTime }
+
+// The contract: what order code needs from storage, as functions.
+type OrderStore =
+    { Load: int -> Order
+      Save: Order -> unit }
+
+module Order =
+    let create (id: int) (placedAt: DateTime) (customer: string) (total: decimal) : Order =
+        { Id = id
+          Customer = customer
+          Total = total
+          PlacedAt = placedAt }
+
+namespace Shop.Billing
+
+open Shop.Orders
+
+module Invoice =
+    let forOrder (order: Order) : string =
+        $"Invoice for {order.Customer}: {order.Total}"
+
+namespace Shop.Shipping
+
+open Shop.Orders
+
+module Label =
+    let forOrder (order: Order) : string =
+        $"Ship to {order.Customer}, placed {order.PlacedAt:d}"
+
+namespace Shop.App
+
+open System
+open System.IO
+open System.Text.Json
+open Shop.Orders
+
+// The implementation of the contract lives at the edge.
+module FileOrderStore =
+    let private path (id: int) = Path.Combine("orders", $"{id}.json")
+
+    let store: OrderStore =
+        { Load = fun id -> JsonSerializer.Deserialize<Order>(File.ReadAllText(path id))
+          Save = fun order -> File.WriteAllText(path order.Id, JsonSerializer.Serialize order) }
+
+module Main =
+    let run () =
+        let store = FileOrderStore.store
+        let order = Order.create (Random.Shared.Next()) DateTime.Now "Ada" 42m
+        store.Save order
+        printfn "%s" (Shop.Billing.Invoice.forOrder (store.Load order.Id))
+        printfn "%s" (Shop.Shipping.Label.forOrder (store.Load order.Id))
+```
+
+```
+Component            Nc  Na  Ca  Ce      A      I      D      E   Data  Zone
+Shop::Shop.Orders     3   1   4   0  0.333  0.000  0.667  0.000  0.333
+Shop::Shop.Billing    1   0   1   1  0.000  0.500  0.500  0.000  0.000
+Shop::Shop.Shipping   1   0   1   1  0.000  0.500  0.500  0.000  0.000
+Shop::Shop.App        2   0   0   2  0.000  1.000  0.000  1.000  0.000
+```
+
+`Shop.Orders` is still stable, and even more depended on, but it is no longer in the Zone of Pain. The `OrderStore` record raises its abstractness, and with the effects gone its effectfulness drops to 0, so what is left behaves like `String`: it only changes when the order rules do. A distance of 0.667 is acceptable for pure code like this. The effects now sit in `Shop.App`, which is unstable and concrete, on the main sequence, where change is cheap because nothing depends on it. Swapping the file store for a database, or for an in-memory store in a test, is a new `OrderStore` value and touches neither billing nor shipping.
+
+Under `--profile classic` the record of functions does not count as abstract and effects are ignored, so `Shop.Orders` stays in the zone there. To satisfy that profile too, the contract would have to be an interface.
+
 ### The Zone of Uselessness
 
 The top right corner, near (1, 1), holds components that are **abstract and unstable**. They declare interfaces or other abstractions, but nothing depends on them, while they depend on others. Abstractions nobody uses add indirection without benefit. They are often left over from a design that changed, or written for flexibility that never came.
