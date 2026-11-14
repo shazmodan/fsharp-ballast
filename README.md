@@ -297,6 +297,92 @@ The top right corner, near (1, 1), holds components that are **abstract and unst
 
 To get a component out of the Zone of Uselessness, remove the abstractions nothing implements or uses, merge the rest into the component that uses them, or, if they are meant to be shared, make them depend on less so that they become stable.
 
+#### Example: notification contracts in the Zone of Uselessness
+
+Here `Shop.Notifications` was written ahead of need, for a time when the shop might send texts as well as emails, format messages in several ways and retry failed sends. It holds three contracts and no implementation. It depends on `Shop.Orders`, and the only thing that depends on it is the one email sender in `Shop.App`:
+
+```fsharp
+namespace Shop.Orders
+
+type Order =
+    { Id: int
+      Customer: string
+      Total: decimal }
+
+namespace Shop.Notifications
+
+open System
+open Shop.Orders
+
+type Notifier = { Send: Order -> unit }
+
+type MessageFormatter = Order -> string
+
+type RetryPolicy = int -> TimeSpan option
+
+namespace Shop.App
+
+open Shop.Orders
+open Shop.Notifications
+
+module Email =
+    let notifier: Notifier =
+        { Send = fun order -> printfn "To %s: thanks for order %d" order.Customer order.Id }
+
+    let confirm (order: Order) : unit = notifier.Send order
+
+module Main =
+    let run () =
+        Email.confirm { Id = 1; Customer = "Ada"; Total = 42m }
+```
+
+```
+Component                 Nc  Na  Ca  Ce      A      I      D      E   Data  Zone
+Shop::Shop.Orders          1   0   4   0  0.000  0.000  1.000  0.000  1.000
+Shop::Shop.Notifications   3   3   1   2  1.000  0.667  0.667  0.000  0.000  uselessness
+Shop::Shop.App             2   0   0   2  0.000  1.000  0.000  1.000  0.000
+```
+
+`Shop.Notifications` is fully abstract, but nothing needs it to be. Nothing implements `MessageFormatter` or `RetryPolicy`, and `Notifier` has a single implementation and a single user. Every reader still has to follow the indirection, and a change to `Order` can still ripple through contracts that do nothing.
+
+The fix applies the first two remedies. The two contracts nothing uses are deleted, and `Notifier`, which is worth keeping so a test can send notifications to a list instead of to customers, moves into `Shop.App`, next to the code that implements and uses it:
+
+```fsharp
+namespace Shop.Orders
+
+type Order =
+    { Id: int
+      Customer: string
+      Total: decimal }
+
+namespace Shop.App
+
+open Shop.Orders
+
+// The one contract that is used, next to its implementation and its user.
+type Notifier = { Send: Order -> unit }
+
+module Email =
+    let notifier: Notifier =
+        { Send = fun order -> printfn "To %s: thanks for order %d" order.Customer order.Id }
+
+    let confirm (order: Order) : unit = notifier.Send order
+
+module Main =
+    let run () =
+        Email.confirm { Id = 1; Customer = "Ada"; Total = 42m }
+```
+
+```
+Component          Nc  Na  Ca  Ce      A      I      D      E   Data  Zone
+Shop::Shop.Orders   1   0   3   0  0.000  0.000  1.000  0.000  1.000
+Shop::Shop.App      3   1   0   3  0.333  1.000  0.333  0.667  0.000
+```
+
+The component is gone, and so is the zone. `Shop.App` is unstable and mostly concrete, close to the main sequence, and its one abstraction is there because it is used. `Shop.Orders` is far from the main sequence but pure data, so it is not in the Zone of Pain, as the previous example explains. If a second application later needs to send notifications, that is the time to move `Notifier` into a shared component, and to keep that component free of other dependencies so it is stable.
+
+Under `--profile classic`, records of functions and function types are not abstract, so `Shop.Notifications` is not flagged at all there. The functional profile is what makes unused function contracts visible.
+
 The HTML report lists every component beyond the distance threshold, with advice for its position.
 
 ## What the numbers mean
