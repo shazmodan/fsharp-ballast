@@ -92,7 +92,7 @@ body {
   color: var(--text-primary);
   font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-main { max-width: 1440px; margin: 0 auto; }
+main { max-width: 1200px; margin: 0 auto; }
 h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
 h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
 .subtitle, .note { color: var(--text-secondary); margin: 0 0 16px; }
