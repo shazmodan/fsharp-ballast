@@ -4,7 +4,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>fsharp-ballast</ToolCommandName>
     <PackageId>fsharp-ballast</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Description>Measures Abstractness, Instability, Distance from the Main Sequence and effectfulness for F# and C# projects and solutions.</Description>
     <PackageTags>fsharp;csharp;metrics;architecture;coupling;static-analysis</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -14,7 +14,7 @@
     <PackageProjectUrl>https://github.com/shazmodan/fsharp-ballast</PackageProjectUrl>
     <RepositoryUrl>https://github.com/shazmodan/fsharp-ballast.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageReleaseNotes>First release. Options and report formats may still change before 1.0.</PackageReleaseNotes>
+    <PackageReleaseNotes>The HTML report is wider (1200px) and the plot no longer shows a native browser tooltip. Options and report formats may still change before 1.0.</PackageReleaseNotes>
     <!-- Run on newer .NET runtimes than the one the tool was built for. -->
     <RollForward>Major</RollForward>
   </PropertyGroup>
